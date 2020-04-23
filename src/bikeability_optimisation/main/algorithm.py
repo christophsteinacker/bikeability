@@ -92,11 +92,14 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
         # Edit minimal loaded edge and update edge_dict.
         edit_edge(nkG, edge_dict, min_loaded_edge)
         # Get all trips affected by editing the edge
-        if rev:
-            trips_recalc = deepcopy(trips_dict)
+        if not edge_dict[min_loaded_edge]['real bp']:
+            if rev:
+                trips_recalc = deepcopy(trips_dict)
+            else:
+                trips_recalc = {trip: trips_dict[trip] for trip
+                                in edge_dict[min_loaded_edge]['trips']}
         else:
-            trips_recalc = {trip: trips_dict[trip] for trip
-                            in edge_dict[min_loaded_edge]['trips']}
+            trips_recalc = {}
 
         # Recalculate all affected trips and update their information.
         calc_trips(nkG, edge_dict, trips_recalc)
@@ -144,7 +147,7 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
 
 
 def run_simulation(place, save, input_folder, output_folder, log_folder,
-                   mode=(0, False)):
+                   real_bp, mode=(0, False)):
     """
     Prepares everything to run the core algorithm. All data will be saved to
     the given folders.
@@ -246,13 +249,20 @@ def run_simulation(place, save, input_folder, output_folder, log_folder,
                         'penalty': penalties[
                             get_street_type_cleaned(nxG, edge, nk2nx_edges)],
                         'speed limit': get_speed_limit(nxG, edge, nk2nx_edges),
-                        'bike path': not rev, 'load': 0, 'trips': []}
+                        'edited': False, 'bike path': not rev,
+                        'real bp': False, 'load': 0, 'trips': []}
                  for edge in nkG.edges()}
+
+    for edge in real_bp:
+        nk_edge = nx2nk_edges[edge]
+        edge_dict[nk_edge]['bike path'] = True
+        edge_dict[nk_edge]['real bp'] = True
 
     if rev:
         for edge, edge_info in edge_dict.items():
-            edge_info['felt length'] *= 1 / edge_info['penalty']
-            nkG.setWeight(edge[0], edge[1], edge_info['felt length'])
+            if not edge_info['real bp']:
+                edge_info['felt length'] *= 1 / edge_info['penalty']
+                nkG.setWeight(edge[0], edge[1], edge_info['felt length'])
 
     # Calculate data
     data = core_algorithm(nkG=nkG, nkG_edited=nkG_edited, edge_dict=edge_dict,

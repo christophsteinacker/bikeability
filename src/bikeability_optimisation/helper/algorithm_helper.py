@@ -242,12 +242,8 @@ def get_minimal_loaded_edge(edge_dict, trips_dict, minmode=0, rev=False):
     :return: minimal loaded edge
     :rtype: Tuple of integers
     """
-    if rev:
-        edges = {edge: edge_info for edge, edge_info in edge_dict.items()
-                 if not edge_info['bike path']}
-    else:
-        edges = {edge: edge_info for edge, edge_info in edge_dict.items()
-                 if edge_info['bike path']}
+    edges = {edge: edge_info for edge, edge_info in edge_dict.items()
+             if not edge_info['edited']}
 
     # Different picking rules
     if minmode == 0:
@@ -664,9 +660,11 @@ def edit_edge(nkG, edge_dict, edge):
     :return: Updated G and edge_dict.
     :rtype: networkx graph and  dict of dicts
     """
-    edge_dict[edge]['bike path'] = not edge_dict[edge]['bike path']
-    edge_dict[edge]['felt length'] *= edge_dict[edge]['penalty']
-    nkG.setWeight(edge[0], edge[1], edge_dict[edge]['felt length'])
+    edge_dict[edge]['edited'] = True
+    if not edge_dict[edge]['real bp']:
+        edge_dict[edge]['bike path'] = not edge_dict[edge]['bike path']
+        edge_dict[edge]['felt length'] *= edge_dict[edge]['penalty']
+        nkG.setWeight(edge[0], edge[1], edge_dict[edge]['felt length'])
     return nkG, edge_dict
 
 
