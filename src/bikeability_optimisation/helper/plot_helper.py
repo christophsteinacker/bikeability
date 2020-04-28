@@ -218,3 +218,17 @@ def get_end(tdt, tdt_now, rev):
     ba = [1 - (i - min(tdt['all'])) / (max(tdt['all']) - min(tdt['all']))
           for i in tdt['all']]
     return next(x for x, val in enumerate(ba) if val >= 1)
+
+
+def get_street_type_ratio(G):
+    G = G.to_undirected()
+    G = nx.Graph(G)
+    st_len = {'primary': 0, 'secondary': 0, 'tertiary': 0, 'residential': 0}
+    total_len = 0
+    for edge in G.edges:
+        e_st = get_street_type_cleaned(G, edge, directed=False)
+        e_len = get_street_length(G, edge, directed=False)
+        st_len[e_st] += e_len
+        total_len += e_len
+    st_len_norm = {k: v / total_len for k, v in st_len.items()}
+    return st_len_norm

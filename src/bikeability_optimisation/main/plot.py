@@ -118,9 +118,9 @@ def plot_mode(city, save, data, data_now, nxG, stations, trip_nbrs,
     # nbr_of_cbc = data[8]
     # gcbc_size = data[9]
     trdt, trdt_now = total_distance_traveled_list(total_real_distance_traveled,
-                                         trdt_now, rev)
+                                                  trdt_now, rev)
     tfdt, tfdt_now = total_distance_traveled_list(total_felt_distance_traveled,
-                                         tfdt_now, rev)
+                                                  tfdt_now, rev)
     bl_st = len_of_bikepath_by_type(edited_edges_nx, nxG, rev)
     bl_st_now = len_of_bikepath_by_type(bp_now, nxG, rev)
     bl_st_now = {st: length[-1] for st, length in bl_st_now.items()}
@@ -129,10 +129,10 @@ def plot_mode(city, save, data, data_now, nxG, stations, trip_nbrs,
         blp = bike_path_perc
     else:
         blp = list(reversed(bike_path_perc))
-    ba = [1 - (i - min(trdt['all'])) / (max(trdt['all']) - min(trdt['all']))
-          for i in trdt['all']]
-    ba_now = 1 - (trdt_now['all'] - min(trdt['all'])) / \
-             (max(trdt['all']) - min(trdt['all']))
+    trdt_min = min(trdt['all'])
+    trdt_max = max(trdt['all'])
+    ba = [1 - (i - trdt_min) / (trdt_max - trdt_min) for i in trdt['all']]
+    ba_now = 1 - (trdt_now['all'] - trdt_min) / (trdt_max - trdt_min)
 
     if rev:
         nos = [x / max(nbr_on_street) for x in nbr_on_street]
@@ -367,7 +367,8 @@ def plot_mode(city, save, data, data_now, nxG, stations, trip_nbrs,
     plt.close('all')
 
     return blp_cut, ba[:end], total_cost[:end], nos[:end], los[:end], \
-           blp_now, ba_now, cost_now, nos_now, los_now
+           blp_now, ba_now, cost_now, nos_now, los_now, blp[cut], trdt_min, \
+           trdt_max
 
 
 def compare_modes(city, save, label, blp, ba, cost, nos, los, blp_now, ba_now,
@@ -516,6 +517,8 @@ def plot_city(city, save, input_folder, output_folder, comp_folder,
     nxG = ox.load_graphml(filename='{}.graphml'.format(save),
                           folder=input_folder, node_type=int)
     nxG = nxG.to_undirected()
+    st_len = get_street_type_ratio(nxG)
+    print(st_len)
 
     data_now = calc_current_state(nxG, trip_nbrs, bike_paths)
 
@@ -543,6 +546,9 @@ def plot_city(city, save, input_folder, output_folder, comp_folder,
     cost = {}
     nos = {}
     los = {}
+    blp_cut = {}
+    trdt_min = {}
+    trdt_max = {}
     blp_now, ba_now, cost_now, nos_now, los_now = 0, 0, 0, 0, 0
 
     for m, d in data.items():
@@ -551,12 +557,12 @@ def plot_city(city, save, input_folder, output_folder, comp_folder,
         else:
             evo = False
         blp[m], ba[m], cost[m], nos[m], los[m], blp_now, ba_now, cost_now, \
-        nos_now, los_now = \
+        nos_now, los_now, blp_cut[m], trdt_min[m], trdt_max[m] = \
             plot_mode(city=city, save=save, data=d, data_now=data_now, nxG=nxG,
                       stations=stations, trip_nbrs=trip_nbrs, mode=m, end=end,
                       evo=evo, plot_folder=plot_folder, plot_format='png')
 
-    data_to_save = [blp, ba, cost, nos, los]
+    data_to_save = [blp, ba, cost, nos, los, blp_cut, trdt_min, trdt_max]
     np.save(comp_folder+'ba_comp_{}.npy'.format(save), data_to_save)
 
     if comp_modes:
@@ -569,7 +575,9 @@ def plot_city(city, save, input_folder, output_folder, comp_folder,
 
 
 def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
-                   plot_format='png'):
+                   figsize=None, plot_format='png'):
+    if figsize is None:
+        figsize = [12, 9]
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
 
     rev = mode[0]
@@ -580,6 +588,11 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     cost = {}
     nos = {}
     los = {}
+    blp_cut = {}
+    trdt_min = {}
+    trdt_max = {}
+    trdt_rat = {}
+
 
     for city in cities:
         save = saves[city]
@@ -590,8 +603,12 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
         cost[city] = data[2][mode]
         nos[city] = data[3][mode]
         los[city] = data[4][mode]
+        blp_cut[city] = data[5][mode]
+        trdt_min[city] = data[6][mode]
+        trdt_max[city] = data[7][mode]
+        trdt_rat[city] = data[7][mode] / data[6][mode]
 
-    fig1, ax1 = plt.subplots(dpi=300)
+    fig1, ax1 = plt.subplots(dpi=150, figsize=figsize)
     ax1.set_xlabel('normalised fraction of bike paths', fontsize=12)
     ax1.set_ylabel('bikeability', fontsize=12)
     ax1.set_title('Comparison of Bikeabilities', fontsize=14)
@@ -601,7 +618,7 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax1.yaxis.set_minor_locator(AutoMinorLocator())
     ax1.set_ylim(bottom=-0.05, top=1.05)
 
-    fig2, ax2 = plt.subplots(dpi=300)
+    fig2, ax2 = plt.subplots(dpi=150, figsize=figsize)
     ax2.set_xlabel('normalised fraction of bike paths', fontsize=12)
     ax2.set_ylabel('integrated bikeability', fontsize=12)
     ax2.set_title('Comparison of Integrated Bikeabilities', fontsize=14)
@@ -611,7 +628,7 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax2.yaxis.set_minor_locator(AutoMinorLocator())
     ax2.set_ylim(bottom=-0.05, top=1.05)
 
-    fig3, ax3 = plt.subplots(dpi=300)
+    fig3, ax3 = plt.subplots(dpi=150, figsize=figsize)
     ax32 = ax3.twinx()
     ax3.set_xlim(-0.05, 1.05)
     ax3.set_ylim(-0.05, 1.05)
@@ -636,7 +653,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
         bikeab = [np.trapz(ba[city][:idx], blp[city][:idx]) for idx in
                   range(len(blp[city]))]
         ax1.plot(blp[city], ba[city], color=color[city],
-                 label='{}'.format(city))
+                 label='{}, fmax = {:3.2f}, trdt ratio = {:3.2f}'
+                 .format(city, blp_cut[city], trdt_rat[city]))
         ax2.plot(blp[city], bikeab, color=color[city],
                  label='{}'.format(city))
         space = round(len(blp[city]) / 25)
