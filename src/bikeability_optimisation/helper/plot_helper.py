@@ -1,7 +1,10 @@
 """
 This module includes all necessary functions for the plotting functionality.
 """
+import pyproj
+import shapely.ops as ops
 from bikeability_optimisation.helper.algorithm_helper import *
+from functools import partial
 
 
 def calc_current_state(nxG, trip_nbrs, bike_paths=None):
@@ -232,3 +235,19 @@ def get_street_type_ratio(G):
         total_len += e_len
     st_len_norm = {k: v / total_len for k, v in st_len.items()}
     return st_len_norm
+
+
+def calc_polygon_area(polygon, unit='sqkm'):
+    geom_area = ops.transform(
+            partial(
+                    pyproj.transform,
+                    pyproj.Proj(init='EPSG:4326'),
+                    pyproj.Proj(
+                            proj='aea',
+                            lat_1=polygon.bounds[1],
+                            lat_2=polygon.bounds[3])),
+            polygon)
+    if unit == 'sqkm':
+        return geom_area.area / 1000000
+    if unit == 'sqm':
+        return geom_area.area
