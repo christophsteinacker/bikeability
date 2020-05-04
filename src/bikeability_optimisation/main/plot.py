@@ -1,7 +1,7 @@
 from math import ceil
 import matplotlib.pyplot as plt
 # import matplotlib.patches as mpatches
-from matplotlib.colors import rgb2hex
+from matplotlib.colors import rgb2hex, to_rgba
 from matplotlib.ticker import AutoMinorLocator
 from matplotlib.legend_handler import HandlerTuple
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
@@ -93,6 +93,154 @@ def plot_edited_edges(city, save, G, edited_edges, bike_path_perc, node_size,
                     '.{4:s}'.format(save, rev, minmode, i, plot_format),
                     format=plot_format)
         plt.close(fig)
+
+
+def plot_trdt_ratio(ratio, colors, save, figsize=None, plot_format='png'):
+    if figsize is None:
+        figsize = [16, 9]
+    cities = list(ratio.keys())
+    values = list(ratio.values())
+
+    fig, ax = plt.subplots(dpi=150, figsize=figsize)
+    y_pos = np.arange(len(cities))
+    for idx, city in enumerate(cities):
+        color = to_rgba(colors[city])
+        ax.barh(y_pos[idx], values[idx], color=color, align='center')
+        x = values[idx] / 2
+        y = y_pos[idx]
+        r, g, b, _ = color
+        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
+                color=text_color)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(cities)
+    ax.invert_yaxis()
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_xlabel(r'$trdt_{max} / trdt_{min}$')
+    ax.set_title('Ratio of max distance traveled to min distance traveled')
+
+    plt.savefig(save + '.{}'.format(plot_format), format=plot_format)
+
+
+def plot_stations_per_node(ratio, colors, save, figsize=None,
+                           plot_format='png'):
+    if figsize is None:
+        figsize = [16, 9]
+    cities = list(ratio.keys())
+    values = list(ratio.values())
+
+    fig, ax = plt.subplots(dpi=150, figsize=figsize)
+    y_pos = np.arange(len(cities))
+    for idx, city in enumerate(cities):
+        color = to_rgba(colors[city])
+        ax.barh(y_pos[idx], values[idx], color=color, align='center')
+        x = values[idx] / 2
+        y = y_pos[idx]
+        r, g, b, _ = color
+        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
+                color=text_color)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(cities)
+    ax.invert_yaxis()
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_xlabel('stations / nodes')
+    ax.set_title('Ratio of stations to total number of nodes')
+
+    plt.savefig(save+'.{}'.format(plot_format), format=plot_format)
+
+
+def plot_stations_per_area(ratio, colors, save, figsize=None,
+                           plot_format='png'):
+    if figsize is None:
+        figsize = [16, 9]
+    cities = list(ratio.keys())
+    values = list(ratio.values())
+
+    fig, ax = plt.subplots(dpi=150, figsize=figsize)
+    y_pos = np.arange(len(cities))
+    for idx, city in enumerate(cities):
+        color = to_rgba(colors[city])
+        ax.barh(y_pos[idx], values[idx], color=color, align='center')
+        x = values[idx] / 2
+        y = y_pos[idx]
+        r, g, b, _ = color
+        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
+                color=text_color)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(cities)
+    ax.invert_yaxis()
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_xlabel('stations / km^2')
+    ax.set_title('Number of station per square kilometer')
+
+    plt.savefig(save+'.{}'.format(plot_format), format=plot_format)
+
+
+def plot_fmax(fmax, colors, save, figsize=None, plot_format='png'):
+    if figsize is None:
+        figsize = [16, 9]
+    cities = list(fmax.keys())
+    values = list(fmax.values())
+
+    y_pos = np.arange(len(cities))
+    fig, ax = plt.subplots(dpi=150, figsize=figsize)
+    for idx, city in enumerate(cities):
+        color = to_rgba(colors[city])
+        ax.barh(y_pos[idx], values[idx], color=color, align='center')
+        x = values[idx] / 2
+        y = y_pos[idx]
+        r, g, b, _ = color
+        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
+                color=text_color)
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(cities)
+    ax.invert_yaxis()
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_xlabel('fraction of bike paths')
+    ax.set_title(r'Fraction of bike baths, where $\beta=1$')
+
+    plt.savefig(save+'.{}'.format(plot_format), format=plot_format)
+
+
+def plot_st_ratio(cities_st_ratio, save, figsize=None, plot_format='png'):
+    if figsize is None:
+        figsize = [16, 9]
+    st_names = ['primary', 'secondary', 'tertiary', 'residential']
+    st_ratio = {city: list(ratio.values()) for city, ratio in
+                cities_st_ratio.items()}
+
+    labels = list(st_ratio.keys())
+    data = np.array(list(st_ratio.values()))
+    data_cum = data.cumsum(axis=1)
+    category_colors = ['darkblue', 'darkgreen', 'darkcyan', 'darkorange']
+    category_colors = [to_rgba(c) for c in category_colors]
+
+    fig, ax = plt.subplots(dpi=150, figsize=figsize)
+    ax.invert_yaxis()
+    ax.xaxis.set_visible(False)
+    ax.set_xlim(0, max(np.sum(data, axis=1)))
+
+    for i, (colname, color) in enumerate(zip(st_names, category_colors)):
+        widths = data[:, i]
+        starts = data_cum[:, i] - widths
+        ax.barh(labels, widths, left=starts, height=0.5,
+                label=colname, color=color)
+        xcenters = starts + widths / 2
+
+        r, g, b, _ = color
+        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        for y, (x, c) in enumerate(zip(xcenters, widths)):
+            ax.text(x, y, '{:3.2f}'.format(c), ha='center', va='center',
+                    color=text_color)
+    ax.legend(ncol=len(st_names), bbox_to_anchor=(0, 1),
+              loc='lower left', fontsize='small')
+    plt.savefig(save+'.{}'.format(plot_format), format=plot_format)
 
 
 def plot_mode(city, save, data, data_now, nxG, stations, trip_nbrs,
@@ -488,7 +636,7 @@ def compare_modes(city, save, label, blp, ba, cost, nos, los, blp_now, ba_now,
     # plt.show()
 
 
-def plot_city(city, save, input_folder, output_folder, comp_folder,
+def plot_city(city, save, polygon, input_folder, output_folder, comp_folder,
               plot_folder, modes, comp_modes=False, bike_paths=None,
               plot_evo=False, evo_for=None, plot_format='png'):
     if evo_for is None:
@@ -517,8 +665,11 @@ def plot_city(city, save, input_folder, output_folder, comp_folder,
     nxG = ox.load_graphml(filename='{}.graphml'.format(save),
                           folder=input_folder, node_type=int)
     nxG = nxG.to_undirected()
-    st_len = get_street_type_ratio(nxG)
-    print(st_len)
+    st_ratio = get_street_type_ratio(nxG)
+    sn_ratio = len(stations) / len(nxG.nodes())
+
+    area = calc_polygon_area(polygon)
+    sa_ratio = len(stations) / area
 
     data_now = calc_current_state(nxG, trip_nbrs, bike_paths)
 
@@ -562,7 +713,8 @@ def plot_city(city, save, input_folder, output_folder, comp_folder,
                       stations=stations, trip_nbrs=trip_nbrs, mode=m, end=end,
                       evo=evo, plot_folder=plot_folder, plot_format='png')
 
-    data_to_save = [blp, ba, cost, nos, los, blp_cut, trdt_min, trdt_max]
+    data_to_save = [blp, ba, cost, nos, los, blp_cut, trdt_min, trdt_max,
+                    st_ratio, sn_ratio, sa_ratio]
     np.save(comp_folder+'ba_comp_{}.npy'.format(save), data_to_save)
 
     if comp_modes:
@@ -575,7 +727,9 @@ def plot_city(city, save, input_folder, output_folder, comp_folder,
 
 
 def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
-                   figsize=None, plot_format='png'):
+                   scale_x=None, figsize=None, plot_format='png'):
+    if scale_x is None:
+        scale_x = {city: 1 for city in cities}
     if figsize is None:
         figsize = [12, 9]
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
@@ -592,7 +746,9 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     trdt_min = {}
     trdt_max = {}
     trdt_rat = {}
-
+    st_ratio = {}
+    sn_ratio = {}
+    sa_ratio = {}
 
     for city in cities:
         save = saves[city]
@@ -607,6 +763,9 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
         trdt_min[city] = data[6][mode]
         trdt_max[city] = data[7][mode]
         trdt_rat[city] = data[7][mode] / data[6][mode]
+        st_ratio[city] = data[8]
+        sn_ratio[city] = data[9]
+        sa_ratio[city] = data[10]
 
     fig1, ax1 = plt.subplots(dpi=150, figsize=figsize)
     ax1.set_xlabel('normalised fraction of bike paths', fontsize=12)
@@ -652,9 +811,9 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     for city in cities:
         bikeab = [np.trapz(ba[city][:idx], blp[city][:idx]) for idx in
                   range(len(blp[city]))]
-        ax1.plot(blp[city], ba[city], color=color[city],
-                 label='{}, fmax = {:3.2f}, trdt ratio = {:3.2f}'
-                 .format(city, blp_cut[city], trdt_rat[city]))
+        blp_scaled = [x * scale_x[city] for x in blp[city]]
+        ax1.plot(blp_scaled, ba[city], color=color[city],
+                 label='{}'.format(city))
         ax2.plot(blp[city], bikeab, color=color[city],
                  label='{}'.format(city))
         space = round(len(blp[city]) / 25)
@@ -684,8 +843,20 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
                                                               plot_format),
                  format=plot_format)
     fig3.savefig(plot_folder+'comparison-3-{:d}{:}.{}'.format(rev, minmode,
-                                                               plot_format),
+                                                              plot_format),
                  format=plot_format)
+
+    plot_trdt_ratio(trdt_rat, color, plot_folder+'comparison-4-{:d}{:}'
+                    .format(rev, minmode),
+                    plot_format=plot_format)
+    plot_stations_per_node(sn_ratio, color, plot_folder+'comparison-5',
+                           plot_format=plot_format)
+    plot_stations_per_area(sa_ratio, color, plot_folder+'comparison-6',
+                           plot_format=plot_format)
+    plot_fmax(blp_cut, color, plot_folder+'comparison-7',
+              plot_format=plot_format)
+    plot_st_ratio(st_ratio, plot_folder+'comparison-8',
+                  plot_format=plot_format)
 
     plt.close('all')
     # plt.show()
