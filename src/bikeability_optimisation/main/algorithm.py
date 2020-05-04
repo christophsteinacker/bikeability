@@ -214,7 +214,7 @@ def run_simulation(place, save, input_folder, output_folder, log_folder,
                     for k, v in trip_nbrs_nx.items()}
 
     # All street types in network
-    street_types = get_all_street_types_cleaned(nxG)
+    street_types = ['primary', 'secondary', 'tertiary', 'residential']
 
     # Setup length on street type dict
     len_on_type = {t: 0 for t in street_types}
