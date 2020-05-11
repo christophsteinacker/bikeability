@@ -5,6 +5,7 @@ import pyproj
 import shapely.ops as ops
 from bikeability_optimisation.helper.algorithm_helper import *
 from functools import partial
+from copy import deepcopy
 
 
 def calc_current_state(nxG, trip_nbrs, bike_paths=None):
@@ -159,9 +160,13 @@ def total_distance_traveled_list(total_dist, total_dist_now, rev):
     dist['street'] = [x / on_street[s] for x in on_street]
     # On primary
     on_primary = [i['total length on primary'] for i in total_dist]
+    if on_primary[s] == 0:
+        on_primary_norm = 1
+    else:
+        on_primary_norm = on_primary[s]
     dist_now['primary'] = total_dist_now['total length on primary'] / \
-                          on_primary[s]
-    dist['primary'] = [x / on_primary[s] for x in on_primary]
+                          on_primary_norm
+    dist['primary'] = [x / on_primary_norm for x in on_primary]
     # On secondary
     on_secondary = [i['total length on secondary'] for i in total_dist]
     dist_now['secondary'] = total_dist_now['total length on secondary'] / \
@@ -251,3 +256,49 @@ def calc_polygon_area(polygon, unit='sqkm'):
         return geom_area.area / 1000000
     if unit == 'sqm':
         return geom_area.area
+
+
+def calc_scale(base_city, cities, saves, comp_folder, mode):
+    blp = {}
+    ba = {}
+
+    for city in cities:
+        save = saves[city]
+        data = np.load(comp_folder+'ba_comp_{}.npy'.format(save),
+                       allow_pickle=True)
+        blp[city] = data[0][mode]
+        ba[city] = data[1][mode]
+
+    blp_base = blp[base_city]
+    ba_base = ba[base_city]
+
+    cities_comp = deepcopy(cities)
+    cities_comp.remove(base_city)
+
+    min_idx = {}
+    for city in cities_comp:
+        m_idx = []
+        for idx, x in enumerate(ba[city]):
+            m_idx.append(min(range(len(ba_base)),
+                             key=lambda i: abs(ba_base[i] - x)))
+        min_idx[city] = m_idx
+
+    scale = {}
+    for city in cities_comp:
+        scale_city = []
+        min_idx_city = min_idx[city]
+        blp_city = blp[city]
+        for idx, x in enumerate(min_idx_city):
+            if blp_city[idx] != 0:
+                scale_city.append(blp_base[x] / blp_city[idx])
+            else:
+                scale_city.append(np.nan)
+        scale[city] = scale_city
+
+    scale_mean = {}
+    for city in cities:
+        if city == base_city:
+            scale_mean[city] = 1.0
+        else:
+            scale_mean[city] = np.mean(scale[city][1:])
+    return scale_mean
