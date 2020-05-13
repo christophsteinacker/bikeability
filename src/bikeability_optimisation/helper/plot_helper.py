@@ -22,9 +22,9 @@ def calc_current_state(nxG, trip_nbrs, bike_paths=None):
     if bike_paths is None:
         stypes = ['primary', 'secondary']
         bike_paths = [e for e in nxG.edges() if
-                      get_street_type_cleaned(nxG, e, directed=True) in stypes]
+                      get_street_type_cleaned(nxG, e, multi=False) in stypes]
     # All street types in network
-    street_types = get_all_street_types_cleaned(nxG, directed=True)
+    street_types = get_all_street_types_cleaned(nxG, multi=False)
     # Add bike paths
     len_on_type = {t: 0 for t in street_types}
     len_on_type['primary'] = 0
@@ -44,15 +44,11 @@ def calc_current_state(nxG, trip_nbrs, bike_paths=None):
                          'felt length on types': len_on_type,
                          'on street': False}
                   for t_id, nbr_of_trips in trip_nbrs.items()}
-    edge_dict = {edge: {'felt length': get_street_length(nxG, edge,
-                                                         directed=True),
-                        'real length': get_street_length(nxG, edge,
-                                                         directed=True),
-                        'street type': get_street_type_cleaned(nxG, edge,
-                                                               directed=True),
-                        'penalty': penalties[
-                            get_street_type_cleaned(nxG, edge, directed=True)],
-                        'speed limit': get_speed_limit(nxG, edge, directed=True),
+    edge_dict = {edge: {'felt length': get_street_length(nxG, edge),
+                        'real length': get_street_length(nxG, edge),
+                        'street type': get_street_type_cleaned(nxG, edge),
+                        'penalty': penalties[get_street_type_cleaned(nxG, edge)],
+                        'speed limit': get_speed_limit(nxG, edge),
                         'bike path': True, 'load': 0, 'trips': []}
                  for edge in nxG.edges()}
 
@@ -60,7 +56,7 @@ def calc_current_state(nxG, trip_nbrs, bike_paths=None):
         if edge not in bike_paths:
             edge_info['bike path'] = False
             edge_info['felt length'] *= edge_info['penalty']
-            nxG[edge[0]][edge[1]][0]['length'] *= edge_info['penalty']
+            nxG[edge[0]][edge[1]]['length'] *= edge_info['penalty']
 
     calc_trips(nxG, edge_dict, trips_dict, netwx=True)
 
@@ -93,15 +89,15 @@ def len_of_bikepath_by_type(ee, G, rev):
     street_types = ['primary', 'secondary', 'tertiary', 'residential']
     total_len = {k: 0 for k in street_types}
     for e in G.edges():
-        st = get_street_type_cleaned(G, e, directed=True)
-        total_len[st] += G[e[0]][e[1]][0]['length']
+        st = get_street_type_cleaned(G, e, multi=False)
+        total_len[st] += G[e[0]][e[1]]['length']
     len_fraction = {k: [0] for k in street_types}
     if not rev:
         ee = list(reversed(ee))
     for e in ee:
-        st = get_street_type_cleaned(G, e, directed=True)
+        st = get_street_type_cleaned(G, e, multi=False)
         len_before = len_fraction[st][-1]
-        len_fraction[st].append(len_before + G[e[0]][e[1]][0]['length'] /
+        len_fraction[st].append(len_before + G[e[0]][e[1]]['length'] /
                                 total_len[st])
         for s in [s for s in street_types if s != st]:
             len_fraction[s].append(len_fraction[s][-1])
@@ -234,8 +230,8 @@ def get_street_type_ratio(G):
     st_len = {'primary': 0, 'secondary': 0, 'tertiary': 0, 'residential': 0}
     total_len = 0
     for edge in G.edges:
-        e_st = get_street_type_cleaned(G, edge, directed=False)
-        e_len = get_street_length(G, edge, directed=False)
+        e_st = get_street_type_cleaned(G, edge, multi=False)
+        e_len = get_street_length(G, edge, multi=False)
         st_len[e_st] += e_len
         total_len += e_len
     st_len_norm = {k: v / total_len for k, v in st_len.items()}

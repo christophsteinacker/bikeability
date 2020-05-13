@@ -8,7 +8,7 @@ import numpy as np
 import time
 
 
-def get_street_type(G, edge, nk2nx=None, directed=False):
+def get_street_type(G, edge, nk2nx=None, multi=False):
     """
     Returns the street type of the edge in G. If 'highway' in G is al list,
     return first entry.
@@ -20,8 +20,8 @@ def get_street_type(G, edge, nk2nx=None, directed=False):
     :type edge: tuple of integers
     :param nk2nx: edge map form networkit graph to networkx graph.
     :type nk2nx: dict
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: Street type.
     :rtype: str
     """
@@ -30,7 +30,7 @@ def get_street_type(G, edge, nk2nx=None, directed=False):
             edge = nk2nx[edge]
         else:
             edge = nk2nx[(edge[1], edge[0])]
-    if directed:
+    if multi:
         street_type = G[edge[0]][edge[1]][0]['highway']
     else:
         street_type = G[edge[0]][edge[1]]['highway']
@@ -40,7 +40,7 @@ def get_street_type(G, edge, nk2nx=None, directed=False):
         return street_type[0]
 
 
-def get_street_type_cleaned(G, edge, nk2nx=None, directed=False):
+def get_street_type_cleaned(G, edge, nk2nx=None, multi=False):
     """
     Returns the street type of the edge. Street types are reduced to
     primary, secondary, tertiary and residential.
@@ -52,12 +52,12 @@ def get_street_type_cleaned(G, edge, nk2nx=None, directed=False):
     :type edge: tuple of integers
     :param nk2nx: edge map form networkit graph to networkx graph.
     :type nk2nx: dict
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: Street type·
     :rtype: str
     """
-    st = get_street_type(G, edge, nk2nx, directed=directed)
+    st = get_street_type(G, edge, nk2nx, multi=multi)
     if st in ['primary', 'primary_link', 'trunk', 'trunk_link']:
         return 'primary'
     elif st in ['secondary', 'secondary_link']:
@@ -68,40 +68,40 @@ def get_street_type_cleaned(G, edge, nk2nx=None, directed=False):
         return 'residential'
 
 
-def get_all_street_types(G, directed=False):
+def get_all_street_types(G, multi=False):
     """
     Returns all street types appearing in G.
     :param G: Graph.
     :type G: networkx graph.
-    :param directed: Set True if G is directed
-    :type directed: bool
+    :param multi: Set True if G is a MultiGraph
+    :type multi: bool
     :return: List of all street types.
     :rtype: list of str
     """
     street_types = set()
     for edge in G.edges():
-        street_types.add(get_street_type(G, edge, directed=directed))
+        street_types.add(get_street_type(G, edge, multi=multi))
     return list(street_types)
 
 
-def get_all_street_types_cleaned(G, directed=False):
+def get_all_street_types_cleaned(G, multi=False):
     """
     Returns all street types appearing in G. Street types are reduced to
     primary, secondary, tertiary and residential.
     :param G: Graph.
     :type G: networkx graph.
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: List of all street types.
     :rtype: list of str
     """
     street_types_cleaned = set()
     for edge in G.edges():
-        street_types_cleaned.add(get_street_type(G, edge, directed=directed))
+        street_types_cleaned.add(get_street_type(G, edge, multi=multi))
     return list(street_types_cleaned)
 
 
-def get_speed_limit(G, edge, nk2nx=None, directed=False):
+def get_speed_limit(G, edge, nk2nx=None, multi=False):
     """
     Returns speed limit of the edge in G.
     :param G: Graph.
@@ -112,8 +112,8 @@ def get_speed_limit(G, edge, nk2nx=None, directed=False):
     :type edge: tuple of integers
     :param nk2nx: edge map form networkit graph to networkx graph.
     :type nk2nx: dict
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: Speed limit.
     :rtype: float
     """
@@ -123,7 +123,7 @@ def get_speed_limit(G, edge, nk2nx=None, directed=False):
         else:
             edge = nk2nx[(edge[1], edge[0])]
     speed_limit = 50
-    if directed:
+    if multi:
         if 'maxspeed' in G[edge[0]][edge[1]]:
             speed_limit = G[edge[0]][edge[1]][0]['maxspeed']
     else:
@@ -139,7 +139,7 @@ def get_speed_limit(G, edge, nk2nx=None, directed=False):
         return 50
 
 
-def get_street_length(G, edge, nk2nx=None, directed=False):
+def get_street_length(G, edge, nk2nx=None, multi=False):
     """
     Returns the length of the edge in G.
     :param G: Graph.
@@ -150,8 +150,8 @@ def get_street_length(G, edge, nk2nx=None, directed=False):
     :type edge: tuple of integers
     :param nk2nx: edge map form networkit graph to networkx graph.
     :type nk2nx: dict
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: Length of edge.
     :rtype: float
     """
@@ -160,7 +160,7 @@ def get_street_length(G, edge, nk2nx=None, directed=False):
             edge = nk2nx[edge]
         else:
             edge = nk2nx[(edge[1], edge[0])]
-    if directed:
+    if multi:
         length = G[edge[0]][edge[1]][0]['length']
     else:
         length = G[edge[0]][edge[1]]['length']
