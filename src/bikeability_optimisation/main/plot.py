@@ -13,6 +13,46 @@ import osmnx as ox
 from bikeability_optimisation.helper.plot_helper import *
 
 
+def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
+              plot_folder, plot_format='png'):
+    G_calc = nx.Graph(G.to_undirected())
+    nx.set_edge_attributes(G, False, 'bike path')
+    nx.set_edge_attributes(G, 0, 'load')
+    edge_dict = calc_current_state(nxG=G_calc, bike_paths=edited_edges,
+                                   trip_nbrs=trip_nbrs)[6]
+
+    max_load_bp = max([edge_info['load'] for edge_info in edge_dict.values()
+                       if edge_info['bike path']])
+    max_load_no = max([edge_info['load'] for edge_info in edge_dict.values()
+                       if not edge_info['bike path']])
+    print(max_load_bp, max_load_no)
+    for edge in edited_edges:
+        G[edge[0]][edge[1]][0]['bike path'] = True
+        G[edge[1]][edge[0]][0]['bike path'] = True
+    for edge, edge_info in edge_dict.items():
+        G[edge[0]][edge[1]][0]['load'] = edge_info['load']
+        G[edge[1]][edge[0]][0]['load'] = edge_info['load']
+
+    cmap_bp = plt.cm.get_cmap('Blues')
+    cmap_no = plt.cm.get_cmap('Reds')
+    ec = []
+    for u, v, data in G.edges(keys=False, data=True):
+        if data['bike path']:
+            ec.append(cmap_bp(data['load'] / max_load_bp))
+        else:
+            ec.append(cmap_no(data['load'] / max_load_no))
+
+    fig, ax = ox.plot_graph(G, node_size=node_size, node_color='C0',
+                            edge_linewidth=3, edge_color=ec, fig_height=20,
+                            fig_width=20, node_zorder=3, dpi=600,
+                            show=False, close=False)
+    fig.suptitle('load'.format(city),
+                 fontsize='x-large')
+    plt.savefig(plot_folder+'{0:s}-load-{1:d}{2:}.{3:s}'
+                .format(save, rev, minmode, plot_format), format=plot_format)
+    plt.close(fig)
+
+
 def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
                     plot_format='png'):
     print('Plotting used nodes.')
@@ -98,7 +138,7 @@ def plot_edited_edges(city, save, G, edited_edges, bike_path_perc, node_size,
 
 
 def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
-                    rev, minmode, plot_folder, plot_format='png'):
+                    trip_nbrs, rev, minmode, plot_folder, plot_format='png'):
     nx.set_edge_attributes(G, False, 'algo')
     nx.set_edge_attributes(G, False, 'cs')
 
@@ -150,6 +190,9 @@ def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
     plt.savefig(plot_folder+'{0:s}-bp-build-{1:d}{2:}.{3:s}'
                 .format(save, rev, minmode, plot_format), format=plot_format)
     plt.close(fig)
+
+    plot_load(city, save, G, ee_algo_cut, trip_nbrs, node_size, rev, minmode,
+              plot_folder, plot_format='png')
 
 
 def plot_trdt_ratio(ratio, colors, save, figsize=None, plot_format='png'):
@@ -625,9 +668,9 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
                     plot_format='png')
     plot_bike_paths(city=city, save=save, G=nxG_plot, ee_algo=edited_edges_nx,
                     ee_cs=bike_paths_now, bpp_algo=bike_path_perc,
-                    bpp_cs=bike_path_perc_now, node_size=ns, rev=rev,
-                    minmode=minmode, plot_folder=plot_folder,
-                    plot_format='png')
+                    bpp_cs=bike_path_perc_now, node_size=ns,
+                    trip_nbrs=trip_nbrs, rev=rev, minmode=minmode,
+                    plot_folder=plot_folder, plot_format='png')
 
     if evo:
         plot_edited_edges(city=city, save=save, G=nxG_plot,
