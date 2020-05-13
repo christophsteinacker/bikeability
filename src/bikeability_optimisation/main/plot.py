@@ -115,8 +115,6 @@ def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
     print('Difference in BPP between p+s and algo: {}'
           .format(abs(bpp_cs - bpp_algo[idx])))
 
-    print(bpp_algo[idx-10:idx+10])
-
     ee_algo_cut = ee_algo[:idx]
     for edge in ee_algo_cut:
         G[edge[0]][edge[1]][0]['algo'] = True
@@ -135,10 +133,11 @@ def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
             ec.append('#FF0000')
         else:
             ec.append('#999999')
+
     fig, ax = ox.plot_graph(G, node_size=node_size, node_color='C0',
-                            edge_color=ec, fig_height=6, fig_width=6,
-                            node_zorder=3, dpi=300, show=False,
-                            close=False)
+                            edge_linewidth=2,
+                            edge_color=ec, fig_height=20, fig_width=20,
+                            node_zorder=3, dpi=600, show=False, close=False)
     leg = [Line2D([0], [0], color='#00FF00', lw=4),
            Line2D([0], [0], color='#0000FF', lw=4),
            Line2D([0], [0], color='#FF0000', lw=4),
@@ -364,9 +363,9 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     rev = mode[0]
     minmode = mode[1]
 
-    bp_now = data_now[0]
+    bike_paths_now = data_now[0]
     cost_now = data_now[1]
-    blp_now = data_now[2]
+    bike_path_perc_now = data_now[2]
     trdt_now = data_now[3]
     tfdt_now = data_now[4]
     nos_now = data_now[5]
@@ -386,7 +385,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     tfdt, tfdt_now = total_distance_traveled_list(total_felt_distance_traveled,
                                                   tfdt_now, rev)
     bl_st = len_of_bikepath_by_type(edited_edges_nx, nxG_calc, rev)
-    bl_st_now = len_of_bikepath_by_type(bp_now, nxG_calc, rev)
+    bl_st_now = len_of_bikepath_by_type(bike_paths_now, nxG_calc, rev)
     bl_st_now = {st: length[-1] for st, length in bl_st_now.items()}
 
     if rev:
@@ -412,7 +411,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
                    if st not in ['street', 'all']}
 
     blp_cut = [i / blp[end] for i in blp[:end]]
-    blp_now = blp_now / blp[end]
+    blp_now = bike_path_perc_now / blp[end]
 
     blp_x = min(blp_cut, key=lambda x: abs(x - blp_now))
     blp_idx = next(x for x, val in enumerate(blp_cut) if val == blp_x)
@@ -625,9 +624,10 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
                     stations=stations, plot_folder=plot_folder,
                     plot_format='png')
     plot_bike_paths(city=city, save=save, G=nxG_plot, ee_algo=edited_edges_nx,
-                    ee_cs=bp_now, bpp_algo=bike_path_perc, bpp_cs=blp_now,
-                    node_size=ns, rev=rev, minmode=minmode,
-                    plot_folder=plot_folder, plot_format='png')
+                    ee_cs=bike_paths_now, bpp_algo=bike_path_perc,
+                    bpp_cs=bike_path_perc_now, node_size=ns, rev=rev,
+                    minmode=minmode, plot_folder=plot_folder,
+                    plot_format='png')
 
     if evo:
         plot_edited_edges(city=city, save=save, G=nxG_plot,
