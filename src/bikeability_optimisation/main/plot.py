@@ -25,7 +25,8 @@ def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
                        if edge_info['bike path']])
     max_load_no = max([edge_info['load'] for edge_info in edge_dict.values()
                        if not edge_info['bike path']])
-    print(max_load_bp, max_load_no)
+    max_load = max([max_load_bp, max_load_no])
+
     for edge in edited_edges:
         G[edge[0]][edge[1]][0]['bike path'] = True
         G[edge[1]][edge[0]][0]['bike path'] = True
@@ -38,16 +39,15 @@ def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
     ec = []
     for u, v, data in G.edges(keys=False, data=True):
         if data['bike path']:
-            ec.append(cmap_bp(data['load'] / max_load_bp))
+            ec.append(cmap_bp(data['load'] / max_load))
         else:
-            ec.append(cmap_no(data['load'] / max_load_no))
+            ec.append(cmap_no(data['load'] / max_load))
 
     fig, ax = ox.plot_graph(G, node_size=node_size, node_color='C0',
                             edge_linewidth=3, edge_color=ec, fig_height=20,
                             fig_width=20, node_zorder=3, dpi=600,
                             show=False, close=False)
-    fig.suptitle('load'.format(city),
-                 fontsize='x-large')
+    fig.suptitle('Edge load in {}'.format(city), fontsize='x-large')
     plt.savefig(plot_folder+'{0:s}-load-{1:d}{2:}.{3:s}'
                 .format(save, rev, minmode, plot_format), format=plot_format)
     plt.close(fig)
@@ -151,6 +151,7 @@ def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
 
     idx = next(x for x, val in enumerate(bpp_algo) if abs(val - bpp_cs) <=
                0.001)
+    idx = min(range(len(bpp_algo)), key=lambda i: abs(bpp_algo[i]-bpp_cs))
 
     print('Difference in BPP between p+s and algo: {}'
           .format(abs(bpp_cs - bpp_algo[idx])))
@@ -185,8 +186,8 @@ def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
     ax.legend(leg, ['both', 'algo', 'p+s', 'none'],
               bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
               ncol=4, mode="expand", borderaxespad=0.)
-    fig.suptitle('Comparison between p+s and algo in {}'.format(city),
-                 fontsize='x-large')
+    fig.suptitle('Comparison between p+s ({:3.2f}) and algo ({:3.2f}) in {:}'
+                 .format(bpp_cs, bpp_algo[idx], city), fontsize='x-large')
     plt.savefig(plot_folder+'{0:s}-bp-build-{1:d}{2:}.{3:s}'
                 .format(save, rev, minmode, plot_format), format=plot_format)
     plt.close(fig)
