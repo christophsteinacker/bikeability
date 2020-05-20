@@ -418,3 +418,111 @@ def save_map(G, save_path, save_name):
     """
     ox.save_graphml(G, filename='{}.graphml'.format(save_name),
                     folder=save_path)
+
+
+def data_to_matrix(stations, trips, scale='log'):
+    df = pd.DataFrame(stations, columns=['station'])
+    for station in stations:
+        df[station] = [np.nan for x in range(len(stations))]
+    df.set_index('station', inplace=True)
+    if scale == 'log':
+        for k, v in trips.items():
+            if not k[0] == k[1]:
+                df[k[0]][k[1]] = np.log(v)
+    else:
+        for k, v in trips.items():
+            if not k[0] == k[1]:
+                df[k[0]][k[1]] = v
+    return df
+
+
+def plot_matrix(city, df, plot_folder, save, cmap=None, figsize=None,
+                dpi=300, plot_format='png', scale='log'):
+    if cmap is None:
+        cmap = plt.cm.get_cmap('PuRd')
+    if figsize is None:
+        figsize = [10, 10]
+
+    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+    ax.pcolor(df, cmap=cmap)
+    ax.tick_params(axis='x', which='both', bottom=False, top=False,
+                   labelbottom=False)
+    ax.tick_params(axis='y', which='both', left=False, right=False,
+                   labelleft=False)
+
+    fig.suptitle('Trips in {}'.format(city), fontsize='x-large')
+    plt.savefig(plot_folder+'{0:s}-matrix-{1:s}.{2:s}'
+                .format(save, scale, plot_format), format=plot_format)
+
+
+def matrix_to_graph(df, rename_columns=None):
+    if rename_columns is None:
+        rename_columns = {'station': 'source', 'level_1': 'target', 0: 'trips'}
+    df.values[[np.arange(len(df))] * 2] = np.nan
+    df = df.stack().reset_index()
+    df = df.rename(columns=rename_columns)
+    return nx.from_pandas_edgelist(df=df, edge_attr='trips')
+
+
+def plot_graph(city, G, plot_folder, node_cmap=None, edge_cmap=None, save=None,
+               plot_format='png', scale='log'):
+    if node_cmap is None:
+        node_cmap = plt.cm.get_cmap('viridis')
+    if edge_cmap is None:
+        edge_cmap = plt.cm.get_cmap('PuRd')
+    degree = [x[1] for x in nx.degree(G)]
+    min_degree = min(degree)
+    max_degree = max(degree)
+
+    trips = [G[u][v]['trips'] for u, v in G.edges()]
+    max_trips = max(trips)
+    min_trips = min(trips)
+
+    fig, ax = plt.subplots(figsize=[20, 20], dpi=250)
+    pos = nx.kamada_kawai_layout(G)
+
+    nx.draw_networkx(G, pos=pos, ax=ax, with_labels=False,
+                     node_color=degree, cmap=node_cmap,
+                     vmin=min_degree, vmax=max_degree, node_size=100,
+                     edge_color=trips, edge_cmap=edge_cmap,
+                     edge_vmin=min_trips, edge_vmax=max_trips)
+
+    fig.suptitle('Trips in {}'.format(city), fontsize='x-large')
+    plt.savefig(plot_folder+'{0:s}-graph-{1:s}.{2:s}'
+                .format(save, scale, plot_format), format=plot_format)
+
+
+def sort_clustering(G):
+    clustering = nx.clustering(G, weight='trips')
+    clustering = {k: v for k, v in
+                  sorted(clustering.items(), key=lambda item: item[1])}
+    return list(reversed(clustering.keys()))
+
+
+def get_communities(requests, requests_result, stations, G):
+    gdf = ox.gdf_from_places(requests, which_results=requests_result)
+
+    communities = [x.split(',')[0] for x in requests]
+    df_com_stat = pd.DataFrame(communities, columns=['community'])
+    df_com_stat['stations'] = [np.nan for x in range(len(communities))]
+    df_com_stat['stations'] = df_com_stat['stations'].astype('object')
+    df_com_stat.set_index('community', inplace=True)
+
+    com_poly = {c: gdf['geometry'][idx] for idx, c in enumerate(communities)}
+
+    com_stat = {k: [] for k in com_poly.keys()}
+    stat_com = {k: None for k in stations}
+    for station in stations:
+        for com, poly in com_poly.items():
+            long = G.nodes[station]['x']
+            lat = G.nodes[station]['y']
+            if poly.intersects(Point(long, lat)):
+                com_stat[com].append(station)
+                stat_com[station] = com
+
+    for com, stat in com_stat.items():
+        df_com_stat.at[com, 'stations'] = stat
+    df_stat_com = pd.DataFrame.from_dict(stat_com, orient='index',
+                                         columns=['community'])
+
+    return df_com_stat, df_stat_com

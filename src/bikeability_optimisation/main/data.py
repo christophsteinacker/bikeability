@@ -81,3 +81,54 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
         ox.save_graphml(G, filename='{}.graphml'.format(save_name),
                         folder=output_folder)
         np.save('{}/{}_demand.npy'.format(output_folder, save_name), [trips])
+
+
+def analyse_city(save, city, input_folder, output_folder, plot_folder,
+                 communities=False, requests=None, requests_result=None,
+                 scale='log'):
+
+    Path(output_folder).mkdir(parents=True, exist_ok=True)
+    Path(plot_folder).mkdir(parents=True, exist_ok=True)
+
+    trips = np.load(input_folder + '{}_demand.npy'.format(save),
+                    allow_pickle=True)[0]
+
+    stations = []
+    for k in trips.keys():
+        stations.append(k[0])
+        stations.append(k[1])
+    stations = list(set(stations))
+
+    df1 = data_to_matrix(stations, trips, scale=scale)
+    plot_matrix(city, df1, plot_folder, save, cmap=None, figsize=None,
+                dpi=300, plot_format='png', scale=scale)
+
+    G = matrix_to_graph(df1)
+    plot_graph(city, G, node_cmap=None, edge_cmap=None, save=save,
+               plot_folder=plot_folder, plot_format='png', scale=scale)
+
+    stations_new = sort_clustering(G)
+    df2 = data_to_matrix(stations_new, trips, scale=scale)
+    plot_matrix(city, df2, plot_folder, save=save+'-cluster', cmap=None,
+                figsize=None, dpi=300, plot_format='png', scale=scale)
+
+    H = matrix_to_graph(df2)
+    plot_graph(city, G, node_cmap=None, edge_cmap=None, save=save+'-cluster',
+               plot_folder=plot_folder, plot_format='png', scale=scale)
+
+    df3 = nx.to_pandas_edgelist(H)
+    rename_columns = {'source': 'NODE_ID1', 'target': 'NODE_ID2',
+                      'trips': 'WEIGHT'}
+    df3.rename(columns=rename_columns, inplace=True)
+    path = output_folder + '{}_trips.csv'.format(save)
+    df3.to_csv(path, index=False)
+
+    if communities:
+        oxG = ox.load_graphml(filename='{}.graphml'.format(save),
+                              folder=input_folder, node_type=int)
+        df_com_stat, df_stat_com = get_communities(requests, requests_result,
+                                                   stations, oxG)
+        df_com_stat.to_csv(output_folder + '{}_com_stat.csv'.format(save),
+                           index=True)
+        df_stat_com.to_csv(output_folder + '{}_stat_com.csv'.format(save),
+                           index=True)
