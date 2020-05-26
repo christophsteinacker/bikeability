@@ -8,10 +8,12 @@ import osmnx as ox
 import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.colors import rgb2hex
+from matplotlib.colors import rgb2hex, to_rgba
+from matplotlib.ticker import AutoMinorLocator
 from math import ceil
 from shapely.geometry import Point, Polygon
 from bikeability_optimisation.helper.algorithm_helper import get_street_type
+from bikeability_optimisation.helper.plot_helper import calc_current_state
 
 
 def read_csv(path, delim=','):
@@ -439,7 +441,7 @@ def data_to_matrix(stations, trips, scale='log'):
 def plot_matrix(city, df, plot_folder, save, cmap=None, figsize=None,
                 dpi=300, plot_format='png', scale='log'):
     if cmap is None:
-        cmap = plt.cm.get_cmap('PuRd')
+        cmap = plt.cm.get_cmap('viridis')
     if figsize is None:
         figsize = [10, 10]
 
@@ -526,3 +528,50 @@ def get_communities(requests, requests_result, stations, G):
                                          columns=['community'])
 
     return df_com_stat, df_stat_com
+
+
+def calc_average_trip_len(nxG, trip_nbrs, penalties=True):
+    if penalties:
+        bike_paths = []
+    else:
+        bike_paths = list(nxG.edges())
+
+    nxG = nx.Graph(nxG.to_undirected())
+    data = calc_current_state(nxG, trip_nbrs, bike_paths=bike_paths)
+    trips_dict = data[7]
+
+    length = []
+    for trip, trip_info in trips_dict.items():
+        length += [trip_info['length felt']] * trip_info['nbr of trips']
+    return np.average(length)
+
+
+def plot_average_trip_length(average_trip_len, colors, plot_folder,
+                             plot_format='png', figsize=None, dpi=150):
+    if figsize is None:
+        figsize = [10, 10]
+
+    cities = list(average_trip_len.keys())
+    values = list(average_trip_len.values())
+
+    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
+    y_pos = np.arange(len(cities))
+    for idx, city in enumerate(cities):
+        color = to_rgba(colors[city])
+        ax.barh(y_pos[idx], values[idx], color=color, align='center')
+        x = values[idx] / 2
+        y = y_pos[idx]
+        r, g, b, _ = color
+        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
+                color=text_color)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(cities)
+    ax.invert_yaxis()
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_xlabel('average trip length')
+    ax.set_title('Average trip length in the city')
+
+    plt.savefig(plot_folder + 'average-trip-len.{}'.format(plot_format),
+                format=plot_format)
