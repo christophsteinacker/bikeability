@@ -92,6 +92,8 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
 
     trips = np.load(input_folder + '{}_demand.npy'.format(save),
                     allow_pickle=True)[0]
+    G_city = ox.load_graphml(filename='{}.graphml'.format(save),
+                             folder=input_folder, node_type=int)
 
     stations = []
     for k in trips.keys():
@@ -132,3 +134,6 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
                            index=True)
         df_stat_com.to_csv(output_folder + '{}_stat_com.csv'.format(save),
                            index=True)
+
+    avg_trip_len = calc_average_trip_len(G_city, trips, penalties=True)
+    return avg_trip_len
