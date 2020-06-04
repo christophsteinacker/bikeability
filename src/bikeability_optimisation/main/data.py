@@ -6,13 +6,18 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
               input_csv, output_folder, polygon_json, plot_folder,
               trunk=False, by_bbox=True, plot_bbox_size=None,
               by_city=True, plot_city_size=None,
-              by_polygon=True, plot_size=None):
+              by_polygon=True, plot_size=None, cached_graph=False,
+              cached_graph_folder=None, cached_graph_name=None):
     if plot_size is None:
         plot_size = [20, 20]
     if plot_city_size is None:
         plot_city_size = [20, 20]
     if plot_bbox_size is None:
         plot_bbox_size = [20, 20]
+    if cached_graph_folder is None:
+        cached_graph_folder = output_folder
+    if cached_graph is None:
+        cached_graph_name = save_name
 
     # Check if necessary folders exists, otherwise create.
     Path(output_folder).mkdir(parents=True, exist_ok=True)
@@ -23,9 +28,15 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
         print('Getting bbox of trips.')
         bbox = get_bbox_of_trips(input_csv)
 
-        # Download map given by bbox
-        print('Downloading map given by bbox.')
-        G_b = download_map_by_bbox(bbox, trunk=trunk)
+        if not cached_graph:
+            # Download map given by bbox
+            print('Downloading map given by bbox.')
+            G_b = download_map_by_bbox(bbox, trunk=trunk)
+        else:
+            print('Loading cached bbox map')
+            G_b = ox.load_graphml(filename='{}_bbox.graphml'
+                                  .format(cached_graph_name),
+                                  folder=cached_graph_folder, node_type=int)
 
         # Loading trips inside bbox
         print('Mapping stations and calculation trips on map given by bbox')
@@ -42,10 +53,16 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
         np.save('{}/{}_bbox_demand.npy'.format(output_folder, save_name),
                 [trips_b])
     if by_city:
-        # Download whole map of the city
-        print('Downloading complete map of city')
-        G_c = download_map_by_name(nominatim_name, nominatim_result,
-                                   trunk=trunk)
+        if not cached_graph:
+            # Download whole map of the city
+            print('Downloading complete map of city')
+            G_c = download_map_by_name(nominatim_name, nominatim_result,
+                                       trunk=trunk)
+        else:
+            print('Loading cached map of city')
+            G_c = ox.load_graphml(filename='{}_city.graphml'
+                                  .format(cached_graph_name),
+                                  folder=cached_graph_folder, node_type=int)
 
         # Loading trips inside whole map
         print('Mapping stations and calculation trips on complete map.')
@@ -66,8 +83,14 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
         # Download cropped map (polygon)
         polygon = get_polygon_from_json(polygon_json)
 
-        print('Downloading polygon.')
-        G = download_map_by_polygon(polygon, trunk=trunk)
+        if not cached_graph:
+            print('Downloading polygon.')
+            G = download_map_by_polygon(polygon, trunk=trunk)
+        else:
+            print('Loading cached map.')
+            G = ox.load_graphml(filename='{}.graphml'
+                                .format(cached_graph_name),
+                                folder=cached_graph_folder, node_type=int)
 
         # Loading trips inside the polygon
         print('Mapping stations and calculation trips in polygon.')
