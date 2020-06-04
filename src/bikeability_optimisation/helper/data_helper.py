@@ -10,7 +10,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex, to_rgba
 from matplotlib.ticker import AutoMinorLocator
-from math import ceil
+from math import ceil, cos, asin, sqrt, pi
 from shapely.geometry import Point, Polygon
 from bikeability_optimisation.helper.algorithm_helper import get_street_type
 from bikeability_optimisation.helper.plot_helper import calc_current_state
@@ -42,6 +42,13 @@ def write_csv(df, path):
     :return: None
     """
     df.to_csv(path, index=False)
+
+
+def distance(lat1, lon1, lat2, lon2):
+    p = pi/180
+    a = 0.5 - cos((lat2-lat1)*p)/2 + cos(lat1*p) * cos(lat2*p) * \
+        (1-cos((lon2-lon1)*p))/2
+    return 12742 * asin(sqrt(a))
 
 
 def get_circle_from_point(lat, long, radius, n_points=20):
@@ -269,6 +276,21 @@ def get_polygon_from_bbox(bbox):
     return polygon
 
 
+def get_bbox_from_polygon(polygon):
+    x, y = polygon.exterior.coords.xy
+    points = [(i, y[j]) for j, i in enumerate(x)]
+
+    west, south = float('inf'), float('inf')
+    east, north = float('-inf'), float('-inf')
+    for x, y in points:
+        west = min(west, x)
+        south = min(south, y)
+        east = max(east, x)
+        north = max(north, y)
+
+    return [north, south, east, west]
+
+
 def drop_invalid_values(csv, column, values, save=False, save_path='',
                         delim=','):
     """
@@ -322,7 +344,7 @@ def prepare_downloaded_map(G, trunk=False):
     else:
         s_t = ['motorway', 'motorway_link', 'trunk', 'trunk_link']
     edges_to_remove = [e for e in G.edges()
-                       if get_street_type(G, e, directed=True) in s_t]
+                       if get_street_type(G, e, multi=True) in s_t]
     G.remove_edges_from(edges_to_remove)
     print('Removed {} car only edges.'.format(len(edges_to_remove)))
 
