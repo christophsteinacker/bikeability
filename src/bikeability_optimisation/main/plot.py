@@ -831,8 +831,8 @@ def plot_city(city, save, polygon, input_folder, output_folder, comp_folder,
           'unique trips: {} (rt excl. {})'
           .format(city, len(stations), trips, trips_re, utrips, utrips_re))
 
-    nxG = ox.load_graphml(filename='{}.graphml'.format(save),
-                          folder=input_folder, node_type=int)
+    nxG = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
+                          node_type=int)
     nxG_plot = nxG.to_undirected()
     nxG_calc = nx.Graph(nxG.to_undirected())
     st_ratio = get_street_type_ratio(nxG_calc)

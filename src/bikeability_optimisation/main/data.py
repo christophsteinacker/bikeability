@@ -4,8 +4,8 @@ from pathlib import Path
 
 def prep_city(city_name, save_name, nominatim_name, nominatim_result,
               input_csv, output_folder, polygon_json, plot_folder,
-              trunk=False, by_bbox=True, plot_bbox_size=None,
-              by_city=True, plot_city_size=None,
+              trunk=False, consolidate=False, tol=35, by_bbox=True,
+              plot_bbox_size=None, by_city=True, plot_city_size=None,
               by_polygon=True, plot_size=None, cached_graph=False,
               cached_graph_folder=None, cached_graph_name=None):
     if plot_size is None:
@@ -31,12 +31,13 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
         if not cached_graph:
             # Download map given by bbox
             print('Downloading map given by bbox.')
-            G_b = download_map_by_bbox(bbox, trunk=trunk)
+            G_b = download_map_by_bbox(bbox, trunk=trunk,
+                                       consolidate=consolidate, tol=tol)
         else:
             print('Loading cached bbox map')
-            G_b = ox.load_graphml(filename='{}_bbox.graphml'
-                                  .format(cached_graph_name),
-                                  folder=cached_graph_folder, node_type=int)
+            G_b = ox.load_graphml(filepath=cached_graph_folder +
+                                           '{}_bbox.graphml'
+                                  .format(cached_graph_name), node_type=int)
 
         # Loading trips inside bbox
         print('Mapping stations and calculation trips on map given by bbox')
@@ -48,8 +49,8 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
                         '{}_bbox'.format(save_name),
                         plot_save_folder=plot_folder,
                         width=plot_bbox_size[0], height=plot_bbox_size[1])
-        ox.save_graphml(G_b, filename='{}_bbox.graphml'.format(save_name),
-                        folder=output_folder)
+        ox.save_graphml(G_b, filepath=output_folder + '{}_bbox.graphml'
+                        .format(save_name))
         np.save('{}/{}_bbox_demand.npy'.format(output_folder, save_name),
                 [trips_b])
     if by_city:
@@ -57,12 +58,13 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
             # Download whole map of the city
             print('Downloading complete map of city')
             G_c = download_map_by_name(nominatim_name, nominatim_result,
-                                       trunk=trunk)
+                                       trunk=trunk, consolidate=consolidate,
+                                       tol=tol)
         else:
             print('Loading cached map of city')
-            G_c = ox.load_graphml(filename='{}_city.graphml'
-                                  .format(cached_graph_name),
-                                  folder=cached_graph_folder, node_type=int)
+            G_c = ox.load_graphml(filepath=cached_graph_folder +
+                                           '{}_city.graphml'
+                                  .format(cached_graph_name), node_type=int)
 
         # Loading trips inside whole map
         print('Mapping stations and calculation trips on complete map.')
@@ -74,8 +76,8 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
                         '{}_city'.format(save_name),
                         plot_save_folder=plot_folder,
                         width=plot_city_size[0], height=plot_city_size[1])
-        ox.save_graphml(G_c, filename='{}_city.graphml'.format(save_name),
-                        folder=output_folder)
+        ox.save_graphml(G_c, filepath=cached_graph_folder +
+                                      '{}_city.graphml'.format(save_name))
         np.save('{}/{}_city_demand.npy'.format(output_folder, save_name),
                 [trips_c])
 
@@ -85,12 +87,12 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
 
         if not cached_graph:
             print('Downloading polygon.')
-            G = download_map_by_polygon(polygon, trunk=trunk)
+            G = download_map_by_polygon(polygon, trunk=trunk,
+                                        consolidate=consolidate, tol=tol)
         else:
             print('Loading cached map.')
-            G = ox.load_graphml(filename='{}.graphml'
-                                .format(cached_graph_name),
-                                folder=cached_graph_folder, node_type=int)
+            G = ox.load_graphml(filepath=cached_graph_folder + '{}.graphml'
+                                .format(cached_graph_name), node_type=int)
 
         # Loading trips inside the polygon
         print('Mapping stations and calculation trips in polygon.')
@@ -101,8 +103,8 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
         plot_used_nodes(G, trips, stations, city_name, save_name,
                         plot_save_folder=plot_folder,
                         width=plot_size[0], height=plot_size[1])
-        ox.save_graphml(G, filename='{}.graphml'.format(save_name),
-                        folder=output_folder)
+        ox.save_graphml(G, filepath=output_folder+'{}.graphml'
+                        .format(save_name))
         np.save('{}/{}_demand.npy'.format(output_folder, save_name), [trips])
 
 
@@ -115,8 +117,8 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
 
     trips = np.load(input_folder + '{}_demand.npy'.format(save),
                     allow_pickle=True)[0]
-    G_city = ox.load_graphml(filename='{}.graphml'.format(save),
-                             folder=input_folder, node_type=int)
+    G_city = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
+                             node_type=int)
 
     stations = []
     for k in trips.keys():
@@ -149,8 +151,8 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
     df3.to_csv(path, index=False)
 
     if communities:
-        oxG = ox.load_graphml(filename='{}.graphml'.format(save),
-                              folder=input_folder, node_type=int)
+        oxG = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
+                              node_type=int)
         df_com_stat, df_stat_com = get_communities(requests, requests_result,
                                                    stations, oxG)
         df_com_stat.to_csv(output_folder + '{}_com_stat.csv'.format(save),

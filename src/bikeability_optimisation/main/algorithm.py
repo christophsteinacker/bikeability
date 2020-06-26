@@ -180,8 +180,10 @@ def run_simulation(place, save, input_folder, output_folder, log_folder,
                 .format(place, minmode, rev),
                 start=sd, stamp=False, difference=False)
 
-    nxG = ox.load_graphml(filename='{}.graphml'.format(save),
-                          folder=input_folder, node_type=int)
+    nxG = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
+                          node_type=int)
+    """nxG = nx.read_graphml(input_folder+'{}.graphml'.format(save),
+                          node_type=int)"""
     nxG = nx.Graph(nxG.to_undirected())
     print('Simulating "{}" with {} nodes and {} edges.'
           .format(place, len(nxG.nodes), len(nxG.edges)))

@@ -319,7 +319,7 @@ def drop_invalid_values(csv, column, values, save=False, save_path='',
     return df
 
 
-def prepare_downloaded_map(G, trunk=False):
+def prepare_downloaded_map(G, trunk=False, consolidate=False, tol=35):
     """
     Prepares the downloaded map. Removes all motorway edges and if
     trunk=False also all trunk edges. Turns it to undirected, removes all
@@ -330,6 +330,10 @@ def prepare_downloaded_map(G, trunk=False):
     :param trunk: Decides if trunk should be kept or not. If you want to
     keep trunk in the graph, set to True.
     :type trunk: bool
+    :param consolidate: Set true if intersections should bes consolidated.
+    :type consolidate: bool
+    :param tol: Tolerance of intersection consolidation in meters
+    :type tol: float
     :return: Cleaned graph
     :rtype: networkx graph.
     """
@@ -352,8 +356,20 @@ def prepare_downloaded_map(G, trunk=False):
     isolated_nodes = list(nx.isolates(G))
     G.remove_nodes_from(isolated_nodes)
     print('Removed {} isolated nodes.'.format(len(isolated_nodes)))
-    G = ox.get_largest_component(G)
+    G = ox.utils_graph.get_largest_component(G)
     print('Reduce to largest connected component')
+
+    if consolidate:
+        H = ox.project_graph(G, to_crs='epsg:2955')
+        H = ox.consolidate_intersections(H, tolerance=tol, rebuild_graph=True,
+                                         dead_ends=True,
+                                         update_edge_lengths=True)
+        print('Consolidating intersections. Nodes before: {}. Nodes after: {}'
+              .format(len(G.nodes), len(H.nodes)))
+        H = nx.convert_node_labels_to_integers(H)
+        nx.set_node_attributes(H, {n: n for n in H.nodes}, 'osmid')
+        G = ox.project_graph(H, to_crs='epsg:4326')
+        print(list(G.nodes(data=True)))
 
     # Bike graph assumed undirected.
     G = G.to_undirected()
@@ -362,7 +378,7 @@ def prepare_downloaded_map(G, trunk=False):
     return G
 
 
-def download_map_by_bbox(bbox, trunk=False):
+def download_map_by_bbox(bbox, trunk=False, consolidate=False, tol=35):
     """
     Downloads a drive graph from osm given by the bbox and cleans it for usage.
     :param bbox: Boundary box of the map.
@@ -370,6 +386,10 @@ def download_map_by_bbox(bbox, trunk=False):
     :param trunk: Decides if trunk should be kept or not. If you want to
     keep trunk in the graph, set to True.
     :type trunk: bool
+    :param consolidate: Set true if intersections should bes consolidated.
+    :type consolidate: bool
+    :param tol: Tolerance of intersection consolidation in meters
+    :type tol: float
     :return: Cleaned graph.
     :rtype: networkx graph
     """
@@ -379,12 +399,13 @@ def download_map_by_bbox(bbox, trunk=False):
     G = ox.graph_from_bbox(bbox[0], bbox[1], bbox[2], bbox[3],
                            network_type='drive')
 
-    G = prepare_downloaded_map(G, trunk)
+    G = prepare_downloaded_map(G, trunk, consolidate=consolidate, tol=tol)
 
     return G
 
 
-def download_map_by_name(city, nominatim_result=1, trunk=False):
+def download_map_by_name(city, nominatim_result=1, trunk=False,
+                         consolidate=False, tol=35):
     """
     Downloads a drive graph from osm given by the name and geocode of the
     nominatim database and  cleans it for usage.
@@ -396,6 +417,10 @@ def download_map_by_name(city, nominatim_result=1, trunk=False):
     :param trunk: Decides if trunk should be kept or not. If you want to
     keep trunk in the graph, set to True.
     :type trunk: bool
+    :param consolidate: Set true if intersections should bes consolidated.
+    :type consolidate: bool
+    :param tol: Tolerance of intersection consolidation in meters
+    :type tol: float
     :return: Cleaned graph.
     :rtype: networkx graph
     """
@@ -404,12 +429,12 @@ def download_map_by_name(city, nominatim_result=1, trunk=False):
     G = ox.graph_from_place(city, which_result=nominatim_result,
                             network_type='drive')
 
-    G = prepare_downloaded_map(G, trunk)
+    G = prepare_downloaded_map(G, trunk, consolidate=consolidate, tol=tol)
 
     return G
 
 
-def download_map_by_polygon(polygon, trunk=False):
+def download_map_by_polygon(polygon, trunk=False, consolidate=False, tol=35):
     """
     Downloads a drive graph from osm given by the polygon and cleans it for
     usage.
@@ -418,13 +443,17 @@ def download_map_by_polygon(polygon, trunk=False):
     :param trunk: Decides if trunk should be kept or not. If you want to
     keep trunk in the graph, set to True.
     :type trunk: bool
+    :param consolidate: Set true if intersections should bes consolidated.
+    :type consolidate: bool
+    :param tol: Tolerance of intersection consolidation in meters
+    :type tol: float
     :return: Cleaned graph.
     :rtype: networkx graph
     """
     print('Downloading map py polygon. Given polygon: {}'.format(polygon))
     G = ox.graph_from_polygon(polygon, network_type='drive')
 
-    G = prepare_downloaded_map(G, trunk)
+    G = prepare_downloaded_map(G, trunk, consolidate=consolidate, tol=tol)
 
     return G
 
@@ -440,8 +469,7 @@ def save_map(G, save_path, save_name):
     :type save_name: str
     :return: none
     """
-    ox.save_graphml(G, filename='{}.graphml'.format(save_name),
-                    folder=save_path)
+    ox.save_graphml(G, filepath=save_path+'{}.graphml'.format(save_name))
 
 
 def data_to_matrix(stations, trips, scale='log'):
