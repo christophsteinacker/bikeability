@@ -127,7 +127,7 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
             data = np.array([edited_edges, edited_edges_nx, total_cost,
                              bike_path_perc, total_real_distance_traveled,
                              total_felt_distance_traveled, nbr_on_street,
-                             len_saved, nbr_of_cbc, gcbc_size])
+                             len_saved, nbr_of_cbc, gcbc_size], dtype=object)
             loc = int_out_folder+'{0:}_data_mode_{1:d}{2:}_{3:02d}.npy'\
                 .format(save, rev, minmode, log_idx+1)
             mes = 'Saved at BLP {0:} as {1:}_data_mode_{2:d}{3:}_{4:02d}.npy'\
@@ -139,7 +139,7 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
     data = np.array([edited_edges, edited_edges_nx, total_cost, bike_path_perc,
                      total_real_distance_traveled,
                      total_felt_distance_traveled, nbr_on_street, len_saved,
-                     nbr_of_cbc, gcbc_size])
+                     nbr_of_cbc, gcbc_size], dtype=object)
     return data
 
 
@@ -249,7 +249,7 @@ def run_simulation(place, save, input_folder, output_folder, log_folder,
                             get_street_type_cleaned(nxG, edge, nk2nx_edges)],
                         'speed limit': get_speed_limit(nxG, edge, nk2nx_edges),
                         'bike path': not rev, 'load': 0, 'trips': []}
-                 for edge in nkG.edges()}
+                 for edge in nkG.iterEdges()}
 
     if rev:
         for edge, edge_info in edge_dict.items():

@@ -44,9 +44,8 @@ def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
             ec.append(cmap_no(data['load'] / max_load))
 
     fig, ax = ox.plot_graph(G, node_size=node_size, node_color='C0',
-                            edge_linewidth=3, edge_color=ec, fig_height=20,
-                            fig_width=20, node_zorder=3, dpi=600,
-                            show=False, close=False)
+                            edge_linewidth=3, edge_color=ec, figsize=(20, 20),
+                            node_zorder=3, dpi=600, show=False, close=False)
     fig.suptitle('Edge load in {}'.format(city), fontsize='x-large')
     plt.savefig(plot_folder+'{0:s}-load-{1:d}{2:}.{3:s}'
                 .format(save, rev, minmode, plot_format), format=plot_format)
@@ -79,7 +78,7 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
            + ['#ffffff']
     color_n = [cmap[v] for k, v in n_rel.items()]
 
-    fig, ax = ox.plot_graph(G, fig_height=15, fig_width=15, dpi=300,
+    fig, ax = ox.plot_graph(G, figsize=(15,15), dpi=300,
                             edge_linewidth=2, node_color=color_n,
                             node_size=ns, node_zorder=3, show=False,
                             close=False)
@@ -124,9 +123,8 @@ def plot_edited_edges(city, save, G, edited_edges, bike_path_perc, node_size,
         ec = ['#0000FF' if data['bike path'] else '#999999' for
               u, v, data in G.edges(keys=False, data=True)]
         fig, ax = ox.plot_graph(G, node_size=node_size, node_color='C0',
-                                edge_color=ec, fig_height=6, fig_width=6,
-                                node_zorder=3, dpi=300, show=False,
-                                close=False)
+                                edge_color=ec, figsize=(6, 6), dpi=300,
+                                node_zorder=3, show=False, close=False)
         fig.suptitle('Bike Path Percentage: {0:.0%} in {1:}'.format(blp[idx],
                                                                     city),
                      fontsize='x-large')
@@ -176,8 +174,7 @@ def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
             ec.append('#999999')
 
     fig, ax = ox.plot_graph(G, node_size=node_size, node_color='C0',
-                            edge_linewidth=2,
-                            edge_color=ec, fig_height=20, fig_width=20,
+                            edge_linewidth=2, edge_color=ec, figsize=(20, 20),
                             node_zorder=3, dpi=600, show=False, close=False)
     leg = [Line2D([0], [0], color='#00FF00', lw=4),
            Line2D([0], [0], color='#0000FF', lw=4),

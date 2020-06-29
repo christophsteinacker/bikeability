@@ -567,7 +567,7 @@ def get_all_shortest_paths(G, source):
     """
     d = nk.distance.Dijkstra(G, source, storePaths=True)
     d.run()
-    shortest_paths = {tgt: d.getPath(tgt) for tgt in list(G.nodes())}
+    shortest_paths = {tgt: d.getPath(tgt) for tgt in list(G.iterNodes())}
     return shortest_paths
 
 
@@ -578,7 +578,7 @@ def remove_isolated_nodes(nkG):
     :type nkG: networkit graph.
     :return: None
     """
-    isolated_nodes = [n for n in nkG.nodes() if nkG.isIsolated(n)]
+    isolated_nodes = [n for n in nkG.iterNodes() if nkG.isIsolated(n)]
     for n in isolated_nodes:
         nkG.removeNode(n)
 

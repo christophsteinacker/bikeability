@@ -18,7 +18,7 @@ jedi>=0.16.0
 kiwisolver>=1.2.0
 matplotlib>=3.2.1
 munch>=2.5.0
-networkit==5.0.1
+networkit>=5.0.1
 networkx>=2.4
 numpy>=1.18.2
 osmnx>=0.12

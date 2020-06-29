@@ -369,7 +369,6 @@ def prepare_downloaded_map(G, trunk=False, consolidate=False, tol=35):
         H = nx.convert_node_labels_to_integers(H)
         nx.set_node_attributes(H, {n: n for n in H.nodes}, 'osmid')
         G = ox.project_graph(H, to_crs='epsg:4326')
-        print(list(G.nodes(data=True)))
 
     # Bike graph assumed undirected.
     G = G.to_undirected()

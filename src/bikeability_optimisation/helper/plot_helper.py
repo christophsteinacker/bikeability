@@ -71,7 +71,7 @@ def calc_current_state(nxG, trip_nbrs, bike_paths=None):
     data = np.array([bike_paths, total_cost, bike_path_perc,
                      total_real_distance_traveled,
                      total_felt_distance_traveled, nbr_on_street, edge_dict,
-                     trips_dict])
+                     trips_dict], dtype=object)
     return data
 
 
