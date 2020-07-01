@@ -38,6 +38,8 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
             G_b = ox.load_graphml(filepath=cached_graph_folder +
                                            '{}_bbox.graphml'
                                   .format(cached_graph_name), node_type=int)
+            if consolidate:
+                G_b = consolidate_nodes(G_b, tol=tol)
 
         # Loading trips inside bbox
         print('Mapping stations and calculation trips on map given by bbox')
@@ -49,6 +51,12 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
                         '{}_bbox'.format(save_name),
                         plot_save_folder=plot_folder,
                         width=plot_bbox_size[0], height=plot_bbox_size[1])
+        fig, ax = ox.plot_graph(G_b, figsize=(20, 20), dpi=300, close=False,
+                                show=False)
+        fig.suptitle('Graph used for {}'.format(city_name.capitalize()),
+                     fontsize=30)
+        plt.savefig('{}/{}_bbox.png'.format(plot_folder, save_name),
+                    format='png')
         ox.save_graphml(G_b, filepath=output_folder + '{}_bbox.graphml'
                         .format(save_name))
         np.save('{}/{}_bbox_demand.npy'.format(output_folder, save_name),
@@ -65,6 +73,8 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
             G_c = ox.load_graphml(filepath=cached_graph_folder +
                                            '{}_city.graphml'
                                   .format(cached_graph_name), node_type=int)
+            if consolidate:
+                G_c = consolidate_nodes(G_c, tol=tol)
 
         # Loading trips inside whole map
         print('Mapping stations and calculation trips on complete map.')
@@ -76,6 +86,12 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
                         '{}_city'.format(save_name),
                         plot_save_folder=plot_folder,
                         width=plot_city_size[0], height=plot_city_size[1])
+        fig, ax = ox.plot_graph(G_c, figsize=(20, 20), dpi=300, close=False,
+                                show=False)
+        fig.suptitle('Graph used for {}'.format(city_name.capitalize()),
+                     fontsize=30)
+        plt.savefig('{}/{}_city.png'.format(plot_folder, save_name),
+                    format='png')
         ox.save_graphml(G_c, filepath=cached_graph_folder +
                                       '{}_city.graphml'.format(save_name))
         np.save('{}/{}_city_demand.npy'.format(output_folder, save_name),
@@ -93,6 +109,8 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
             print('Loading cached map.')
             G = ox.load_graphml(filepath=cached_graph_folder + '{}.graphml'
                                 .format(cached_graph_name), node_type=int)
+            if consolidate:
+                G = consolidate_nodes(G, tol=tol)
 
         # Loading trips inside the polygon
         print('Mapping stations and calculation trips in polygon.')
@@ -103,6 +121,11 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
         plot_used_nodes(G, trips, stations, city_name, save_name,
                         plot_save_folder=plot_folder,
                         width=plot_size[0], height=plot_size[1])
+        fig, ax = ox.plot_graph(G, figsize=(20, 20), dpi=300, close=False,
+                                show=False)
+        fig.suptitle('Graph used for {}'.format(city_name.capitalize()),
+                     fontsize=30)
+        plt.savefig('{}/{}.png'.format(plot_folder, save_name), format='png')
         ox.save_graphml(G, filepath=output_folder+'{}.graphml'
                         .format(save_name))
         np.save('{}/{}_demand.npy'.format(output_folder, save_name), [trips])

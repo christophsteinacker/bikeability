@@ -213,36 +213,42 @@ def plot_used_nodes(G, trip_nbrs, stations, place, save, width=20, height=20,
                 nodes[e_node] += trip_nbrs[(s_node, e_node)]
 
     max_n = max(nodes.values())
-    n_rel = {key: ceil((value / max_n) * 100) for key, value in nodes.items()}
+    n_rel = {key: value for key, value in nodes.items()}
     ns = [100 if n in stations else 0 for n in G.nodes()]
-
+    plt.hist([value for key, value in n_rel.items() if value !=0],
+             bins=ceil(max_n / 250))
+    plt.show()
     for n in G.nodes():
         if n not in stations:
-            n_rel[n] = 101
-
+            n_rel[n] = max_n + 1
     cmap_name = 'cool'
     cmap = plt.cm.get_cmap(cmap_name)
     cmap = ['#999999'] + \
-           [rgb2hex(cmap(n)) for n in np.linspace(1, 0, 100, endpoint=False)] \
+           [rgb2hex(cmap(n)) for n in reversed(np.linspace(1, 0, max_n,
+                                                           endpoint=False))] \
            + ['#ffffff']
     color_n = [cmap[v] for k, v in n_rel.items()]
 
-    fig, ax = ox.plot_graph(G, fig_height=height, fig_width=width, dpi=dpi,
-                            edge_linewidth=2, node_color=color_n,
+    fig, ax = ox.plot_graph(G, bgcolor='#ffffff', figsize=(width, height),
+                            dpi=dpi, edge_linewidth=1.5, node_color=color_n,
                             node_size=ns, node_zorder=3, show=False,
                             close=False)
     sm = plt.cm.ScalarMappable(cmap=plt.cm.get_cmap(cmap_name),
-                               norm=plt.Normalize(vmin=0, vmax=1))
+                               norm=plt.Normalize(vmin=0, vmax=max_n))
     sm._A = []
     cbaxes = fig.add_axes([0.1, 0.075, 0.8, 0.03])
-    cbar = fig.colorbar(sm, orientation='horizontal', cax=cbaxes)
+    cbar = fig.colorbar(sm, orientation='horizontal', cax=cbaxes,
+                        ticks=[0, round(max_n / 2), max_n])
     cbar.ax.tick_params(axis='x', labelsize=18)
-    cbar.ax.set_xlabel('normalised usage of stations', fontsize=24)
-    fig.suptitle('Nodes used as Stations in {}'.format(place.capitalize()),
-                 fontsize=30)
-    plt.savefig('{}/{}.png'.format(plot_save_folder, save), format='png')
+    cbar.ax.set_xticklabels(['Low', 'Medium', 'High'])
+    cbar.ax.set_xlabel('Usage of Stations', fontsize=24, labelpad=20)
 
-    # plt.close('all')
+    fig.suptitle('Nodes used as Stations in {}'.format(place.capitalize()),
+                 fontsize=30, x=0.5, y=0.9, verticalalignment='bottom')
+    plt.savefig('{}/{}_stations.png'.format(plot_save_folder, save),
+                format='png')
+
+    plt.close('all')
     plt.show()
 
 
@@ -319,6 +325,18 @@ def drop_invalid_values(csv, column, values, save=False, save_path='',
     return df
 
 
+def consolidate_nodes(G, tol):
+    H = ox.project_graph(G, to_crs='epsg:2955')
+    H = ox.consolidate_intersections(H, tolerance=tol, rebuild_graph=True,
+                                     dead_ends=True, reconnect_edges=True)
+    print('Consolidating intersections. Nodes before: {}. Nodes after: {}'
+          .format(len(G.nodes), len(H.nodes)))
+    H = nx.convert_node_labels_to_integers(H)
+    nx.set_node_attributes(H, {n: n for n in H.nodes}, 'osmid')
+    G = ox.project_graph(H, to_crs='epsg:4326')
+    return G
+
+
 def prepare_downloaded_map(G, trunk=False, consolidate=False, tol=35):
     """
     Prepares the downloaded map. Removes all motorway edges and if
@@ -360,15 +378,7 @@ def prepare_downloaded_map(G, trunk=False, consolidate=False, tol=35):
     print('Reduce to largest connected component')
 
     if consolidate:
-        H = ox.project_graph(G, to_crs='epsg:2955')
-        H = ox.consolidate_intersections(H, tolerance=tol, rebuild_graph=True,
-                                         dead_ends=True,
-                                         update_edge_lengths=True)
-        print('Consolidating intersections. Nodes before: {}. Nodes after: {}'
-              .format(len(G.nodes), len(H.nodes)))
-        H = nx.convert_node_labels_to_integers(H)
-        nx.set_node_attributes(H, {n: n for n in H.nodes}, 'osmid')
-        G = ox.project_graph(H, to_crs='epsg:4326')
+        G = consolidate_nodes(G, tol)
 
     # Bike graph assumed undirected.
     G = G.to_undirected()
