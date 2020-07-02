@@ -21,7 +21,7 @@ munch>=2.5.0
 networkit>=7.0
 networkx>=2.4
 numpy>=1.19.0
-osmnx==0.14.1
+osmnx>=0.14.1
 pandas>=1.0.5
 parso>=0.7.0
 pexpect>=4.8.0
