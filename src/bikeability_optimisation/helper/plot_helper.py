@@ -1,12 +1,16 @@
 """
 This module includes all necessary functions for the plotting functionality.
 """
+import math
 import pyproj
 import shapely.ops as ops
 from bikeability_optimisation.helper.algorithm_helper import *
 from functools import partial
 from copy import deepcopy
 
+
+def magnitude(x):
+    return int(math.floor(math.log10(x)))
 
 def calc_current_state(nxG, trip_nbrs, bike_paths=None):
     """
@@ -148,42 +152,46 @@ def total_distance_traveled_list(total_dist, total_dist_now, rev):
 
     # On all
     on_all = [i['total length on all'] for i in total_dist]
-    dist_now['all'] = total_dist_now['total length on all'] / on_all[s]
-    dist['all'] = [x / on_all[s] for x in on_all]
+    on_all_now = total_dist_now['total length on all']
+
+    dist['all'] = on_all
+    dist_now['all'] = total_dist_now['total length on all']
+
     # On streets w/o bike paths
     on_street = [i['total length on street'] for i in total_dist]
-    dist_now['street'] = total_dist_now['total length on street'] / \
-                         on_street[s]
-    dist['street'] = [x / on_street[s] for x in on_street]
+    dist['street'] = [x / on_all[idx] for idx, x in enumerate(on_street)]
+    dist_now['street'] = total_dist_now['total length on street'] / on_all_now
+
     # On primary
     on_primary = [i['total length on primary'] for i in total_dist]
-    if on_primary[s] == 0:
-        on_primary_norm = 1
-    else:
-        on_primary_norm = on_primary[s]
+    dist['primary'] = [x / on_all[idx] for idx, x in enumerate(on_primary)]
     dist_now['primary'] = total_dist_now['total length on primary'] / \
-                          on_primary_norm
-    dist['primary'] = [x / on_primary_norm for x in on_primary]
+                          on_all_now
+
     # On secondary
     on_secondary = [i['total length on secondary'] for i in total_dist]
+    dist['secondary'] = [x / on_all[idx] for idx, x in enumerate(on_secondary)]
     dist_now['secondary'] = total_dist_now['total length on secondary'] / \
-                            on_secondary[s]
-    dist['secondary'] = [x / on_secondary[s] for x in on_secondary]
+                            on_all_now
     # On tertiary
     on_tertiary = [i['total length on tertiary'] for i in total_dist]
+    dist['tertiary'] = [x / on_all[idx] for idx, x in enumerate(on_tertiary)]
     dist_now['tertiary'] = total_dist_now['total length on tertiary'] / \
-                           on_tertiary[s]
-    dist['tertiary'] = [x / on_tertiary[s] for x in on_tertiary]
+                           on_all_now
+
     # On residential
     on_residential = [i['total length on residential'] for i in total_dist]
+    dist['residential'] = [x / on_all[idx] for idx, x in
+                           enumerate(on_residential)]
     dist_now['residential'] = total_dist_now['total length on residential'] / \
-                              on_residential[s]
-    dist['residential'] = [x / on_residential[s] for x in on_residential]
+                              on_all_now
+
     # On bike paths
     on_bike = [i['total length on bike paths'] for i in total_dist]
-    dist_now['bike paths'] = total_dist_now['total length on bike paths'] / \
-                        on_bike[e]
-    dist['bike paths'] = [x / on_bike[e] for x in on_bike]
+    dist['bike paths'] = [x / on_all[idx] for idx, x in enumerate(on_bike)]
+    dist_now['bike paths'] = total_dist_now['total length on bike paths'] /\
+                             on_all_now
+
     if not rev:
         for st, len_on_st in dist.items():
             dist[st] = list(reversed(len_on_st))
