@@ -177,7 +177,9 @@ def plot_edited_edges(city, save, G, edited_edges, bike_path_perc, node_size,
 
 def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
                     trip_nbrs, rev, minmode, plot_folder, plot_format='png',
-                    figsize=[10, 10], dpi=150, mode='diff'):
+                    figsize=None, dpi=150, mode='diff'):
+    if figsize is None:
+        figsize = [10, 10]
     nx.set_edge_attributes(G, False, 'algo')
     nx.set_edge_attributes(G, False, 'cs')
 
@@ -249,7 +251,7 @@ def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
     else:
         print('You have to choose between algo, p+s and diff.')
 
-    fig, ax = plt.subplots(dpi=dpi, figsize=[10, 10])
+    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
     ox.plot_graph(G, bgcolor='#ffffff', ax=ax,
                   node_size=node_size, node_color='C0', node_zorder=3,
                   edge_linewidth=1.5, edge_color=ec,
@@ -731,8 +733,8 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     handles.append(ax12.get_legend_handles_labels()[0][0])
     ax1.legend(handles=handles, loc='lower right', fontsize=18)
 
-    fig1.savefig(plot_folder + '{:}_ba_tc_mode_{:d}{:}.png'
-                 .format(save, rev, minmode), format=plot_format,
+    fig1.savefig(plot_folder + '{:}_ba_tc_mode_{:d}{:}.{}'
+                 .format(save, rev, minmode, plot_format), format=plot_format,
                  bbox_inches='tight')
 
     ax1ins = zoomed_inset_axes(ax1, 3.5, loc=1)
@@ -879,7 +881,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
                       for st, len_on_st in trdt_st.items()}
     plot_barv_stacked(['Algorithm', 'Primary/Secondary'], comp_st_driven, c_st,
                       title=city, save=plot_folder+'{:}_comp_st_driven_{:d}{:}'
-                      .format(save, rev, minmode))
+                      .format(save, rev, minmode), plot_format=plot_format)
 
     diff_core = {}
     diff_core['Bikeability'] = ba_improve
@@ -889,8 +891,8 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
                    'Length': c_los}
     plot_barv(diff_core, c_diff_core,
               plot_folder+'{:}_improvement_core_{:d}{:}'
-              .format(save, rev, minmode), plot_format='png', figsize=[10, 12],
-              y_label='',
+              .format(save, rev, minmode), plot_format=plot_format,
+              figsize=[10, 12], y_label='',
               title='Change compared to primary and secondary only')
 
     diff_st = {st: trdt_st_now[st] - len_on_st[blp_idx]
@@ -899,16 +901,16 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
                             trdt_st_now['bike paths']
     c_diff_st = {st: c for st, c in c_st.items()}
     plot_barv(diff_st, c_diff_st, plot_folder+'{:}_improvement_st_{:d}{:}'
-              .format(save, rev, minmode), plot_format='png', figsize=[10, 12],
-              y_label='',
+              .format(save, rev, minmode), plot_format=plot_format,
+              figsize=[10, 12], y_label='',
               title='Change compared to primary and secondary only')
     diff = deepcopy(diff_core)
     diff.update(diff_st)
     c_diff = deepcopy(c_diff_core)
     c_diff.update(c_diff_st)
     plot_barv(diff, c_diff, plot_folder + '{:}_improvement_{:d}{:}'
-              .format(save, rev, minmode), plot_format='png', figsize=[10, 11],
-              y_label='',
+              .format(save, rev, minmode), plot_format=plot_format,
+              figsize=[10, 11], y_label='',
               title='Change compared to primary and secondary only')
 
 
@@ -921,7 +923,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
                         bpp_algo=bike_path_perc, bpp_cs=bike_path_perc_now,
                         node_size=ns, trip_nbrs=trip_nbrs, rev=rev,
                         minmode=minmode, plot_folder=plot_folder,
-                        plot_format='png', mode=bp_mode)
+                        plot_format=plot_format, mode=bp_mode)
 
     if evo:
         plot_edited_edges(city=city, save=save, G=nxG_plot,
@@ -1137,7 +1139,7 @@ def plot_city(city, save, polygon, input_folder, output_folder, comp_folder,
             plot_mode(city=city, save=save, data=d, data_now=data_now,
                       nxG_calc=nxG_calc, nxG_plot=nxG_plot, stations=stations,
                       trip_nbrs=trip_nbrs, mode=m, end=end, evo=evo,
-                      plot_folder=plot_folder, plot_format='png')
+                      plot_folder=plot_folder, plot_format=plot_format)
 
     data_to_save = [blp, ba, cost, nos, los, blp_cut, trdt_min, trdt_max,
                     st_ratio, sn_ratio, sa_ratio, ba_improve, blp_now, ba_now,
