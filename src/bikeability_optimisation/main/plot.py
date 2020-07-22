@@ -71,7 +71,7 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
     print('Maximal station usage: {}'.format(max_n))
 
     n_rel = {key: value for key, value in nodes.items()}
-    ns = [100 if n in stations else 0 for n in G.nodes()]
+    ns = [75 if n in stations else 0 for n in G.nodes()]
 
     for n in G.nodes():
         if n not in stations:
@@ -125,12 +125,12 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
                                  int(round(max_n / 2, -(max_r-2))),
                                  round(max_n, -(max_r-1))])
 
-    cbar.ax.tick_params(axis='x', labelsize=12)
-    cbar.ax.set_xlabel('Usage of Stations', fontsize=18)
+    cbar.ax.tick_params(axis='x', labelsize=16)
+    cbar.ax.set_xlabel('Total Number of Trips', fontsize=18)
 
-    fig2.suptitle('{}, Stations: {}, Trips: {}'
-                  .format(city.capitalize(), station_count, trip_count),
-                  fontsize=24)
+    #fig2.suptitle('{}, Stations: {}, Trips: {}'
+    #              .format(city.capitalize(), station_count, trip_count),
+    #              fontsize=24)
     fig2.savefig(plot_folder + '{:}_stations_used.{}'
                  .format(save, plot_format), format=plot_format)
 
@@ -259,26 +259,26 @@ def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
     if mode == 'algo':
         leg = [Line2D([0], [0], color=color_algo, lw=4),
                Line2D([0], [0], color=color_unused, lw=4)]
-        ax.legend(leg, ['Algorithm', 'None'],
-                  bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
-                  ncol=2, mode="expand", borderaxespad=0., fontsize=12)
-        ax.set_title('Algorithm', fontsize=24)
+        #ax.legend(leg, ['Algorithm', 'None'],
+        #          bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
+        #          ncol=2, mode="expand", borderaxespad=0., fontsize=12)
+        #ax.set_title('Algorithm', fontsize=24)
     elif mode == 'p+s':
         leg = [Line2D([0], [0], color=color_cs, lw=4),
                Line2D([0], [0], color=color_unused, lw=4)]
-        ax.legend(leg, ['Primary + Secondary', 'None'],
-                  bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
-                  ncol=2, mode="expand", borderaxespad=0., fontsize=12)
-        ax.set_title('Primary/Secondary', fontsize=24)
+        #ax.legend(leg, ['Primary + Secondary', 'None'],
+        #          bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
+        #          ncol=2, mode="expand", borderaxespad=0., fontsize=12)
+        #ax.set_title('Primary/Secondary', fontsize=24)
     elif mode == 'diff':
         leg = [Line2D([0], [0], color=color_both, lw=4),
                Line2D([0], [0], color=color_algo, lw=4),
                Line2D([0], [0], color=color_cs, lw=4),
                Line2D([0], [0], color=color_unused, lw=4)]
-        ax.legend(leg, ['Both', 'Algorithm', 'Primary + Secondary', 'None'],
-                  bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
-                  ncol=4, mode="expand", borderaxespad=0., fontsize=12)
-        ax.set_title('Comparison', fontsize=24)
+        # ax.legend(leg, ['Both', 'Algorithm', 'Primary + Secondary', 'None'],
+        #          bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
+        #          ncol=4, mode="expand", borderaxespad=0., fontsize=12)
+        #ax.set_title('Comparison', fontsize=24)
     plt.savefig(plot_folder+'{0:s}-bp-build-{1:d}{2:d}_{3:s}.{4:s}'
                 .format(save, rev, minmode, mode, plot_format),
                 format=plot_format, bbox_inches='tight')
@@ -529,7 +529,7 @@ def plot_st_ratio(cities_st_ratio, save, figsize=None, plot_format='png'):
 
 
 def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
-                      width=0.35, figsize=None, dpi=150, plot_format='png'):
+                      width=0.8, figsize=None, dpi=150, plot_format='png'):
     if figsize is None:
         figsize = [10, 12]
 
@@ -543,22 +543,26 @@ def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
 
     stacks = list(data.keys())
     values = list(data.values())
+    x = np.arange((len(labels)))
 
     fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
     ax.set_ylim(0.0, 1.0)
-    ax.bar(labels, values[0], width, label=stacks[0],
+    ax.bar(x, values[0], width, label=stacks[0],
            color=colors[stacks[0]])
     bottom = values[0]
     for idx in range(len(stacks)-1):
         bottom = [sum(x) for x in zip(bottom, values[idx])]
-        ax.bar(labels, values[idx+1], width, label=stacks[idx+1],
+        ax.bar(x, values[idx+1], width, label=stacks[idx+1],
                bottom=bottom, color=colors[stacks[idx+1]])
 
     ax.set_ylabel(ylabel, fontsize=18)
-    ax.tick_params(axis='y', labelsize=16)
-    ax.tick_params(axis='x', labelsize=16)
-    ax.set_title(title, fontsize=24)
-    ax.legend(fontsize=18)
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.tick_params(axis='y', labelsize=24)
+    ax.tick_params(axis='x', labelsize=24)
+    # ax.set_title(title, fontsize=24)
+    # ax.legend(fontsize=18)
 
     plt.savefig(save+'.{}'.format(plot_format), format=plot_format,
                 bbox_inches='tight')
@@ -674,7 +678,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     cost_now = cost_now / total_cost[end]
     # gcbc_size_normed = [i / max(gcbc_size) for i in reversed(gcbc_size)]
 
-    ns = [30 if n in stations else 0 for n in nxG_plot.nodes()]
+    ns = [50 if n in stations else 0 for n in nxG_plot.nodes()]
     cmap_name = 'viridis'
     cmap = plt.cm.get_cmap(cmap_name)
     c = [cmap(n) for n in np.linspace(1, 0, 9, endpoint=True)]
@@ -693,16 +697,16 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
 
     c_ba = 'C0'
 
-    ax1.plot(blp_cut, ba[:end], c=c_ba, label='bikeability')
+    ax1.plot(blp_cut, ba[:end], c=c_ba, label='relative detour')
     ax1.plot(blp_now, ba_now, c=c_ba, marker='D')
-    ax1.tick_params(axis='x', labelsize=18)
+    ax1.tick_params(axis='x', labelsize=16)
     xmax, ymax = coord_transf(blp_now, max([ba_y, ba_now]),
                               xmax=1, xmin=0, ymax=1, ymin=0)
     ax1.axvline(x=blp_now, ymax=ymax, ymin=0, c=c_ba, ls='--', alpha=0.5)
     ax1.axhline(y=ba_now, xmax=xmax, xmin=0, c=c_ba, ls='--', alpha=0.5)
     ax1.axhline(y=ba_y, xmax=xmax, xmin=0, c=c_ba, ls='--', alpha=0.5)
 
-    ax1.set_ylabel('bikeability', fontsize=18, color=c_ba)
+    ax1.set_ylabel('relative detour', fontsize=24, color=c_ba)
     ax1.tick_params(axis='y', labelsize=16, labelcolor=c_ba)
     ax1.yaxis.set_minor_locator(AutoMinorLocator())
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
@@ -718,12 +722,12 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax1.axhline(y=cost_now, xmax=1, xmin=xmin, c=c_cost, ls='--', alpha=0.5)
     ax1.axhline(y=cost_y, xmax=xmax, xmin=0, c=c_cost, ls='--', alpha=0.5)
 
-    ax12.set_ylabel('cost', fontsize=18, color=c_cost)
+    ax12.set_ylabel('cost', fontsize=24, color=c_cost)
     ax12.tick_params(axis='y', labelsize=16, labelcolor=c_cost)
     ax12.yaxis.set_minor_locator(AutoMinorLocator())
 
-    ax1.set_xlabel('normalised fraction of bike paths', fontsize=18)
-    ax1.set_title('Bikeability and Cost in {}'.format(city), fontsize=24)
+    ax1.set_xlabel('normalised fraction of bike paths', fontsize=24)
+    # ax1.set_title('Bikeability and Cost in {}'.format(city), fontsize=24)
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
     ax1.tick_params(axis='x', labelsize=16)
     ax1.grid(False)
@@ -731,7 +735,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
 
     handles = ax1.get_legend_handles_labels()[0]
     handles.append(ax12.get_legend_handles_labels()[0][0])
-    ax1.legend(handles=handles, loc='lower right', fontsize=18)
+    #ax1.legend(handles=handles, loc='lower right', fontsize=18)
 
     fig1.savefig(plot_folder + '{:}_ba_tc_mode_{:d}{:}.{}'
                  .format(save, rev, minmode, plot_format), format=plot_format,
@@ -781,7 +785,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     # ax2.axvline(x=los_x, ymax=ymax, ymin=0, c=c_los, ls='--', alpha=0.5)
     ax2.axhline(y=los_y, xmax=xmax, xmin=0, c=c_los, ls='--', alpha=0.5)
 
-    ax2.set_ylabel('length of trips', fontsize=18, color=c_los)
+    ax2.set_ylabel('length of trips', fontsize=24, color=c_los)
     ax2.tick_params(axis='y', labelsize=16, labelcolor=c_los)
     ax2.yaxis.set_minor_locator(AutoMinorLocator())
 
@@ -794,16 +798,16 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     # ax22.axvline(x=nos_x, ymax=ymax, ymin=0, c=c_nos, ls='--', alpha=0.5)
     ax22.axhline(y=nos_y, xmax=1, xmin=xmin, c=c_nos, ls='--', alpha=0.5)
 
-    ax22.set_ylabel('number of trips', fontsize=18, color=c_nos)
+    ax22.set_ylabel('number of trips', fontsize=24, color=c_nos)
     ax22.tick_params(axis='y', labelsize=16, labelcolor=c_nos)
     ax22.yaxis.set_minor_locator(AutoMinorLocator())
 
     ax2.xaxis.set_minor_locator(AutoMinorLocator())
     ax2.tick_params(axis='x', labelsize=16)
-    ax2.set_xlabel('normalised fraction of bike paths', fontsize=18)
-    ax2.set_title('Number of Trips and Length on Street in {}'.format(city),
-                  fontsize=24)
-    ax2.legend([p1, p2], [l.get_label() for l in [p1, p2]], fontsize=18)
+    ax2.set_xlabel('normalised fraction of bike paths', fontsize=24)
+    #ax2.set_title('Number of Trips and Length on Street in {}'.format(city),
+                  #fontsize=24)
+    #ax2.legend([p1, p2], [l.get_label() for l in [p1, p2]], fontsize=18)
     fig2.savefig(plot_folder + '{:}_trips_on_street_mode_{:d}{:}.{}'
                  .format(save, rev, minmode, plot_format), format=plot_format,
                  bbox_inches='tight')
@@ -880,7 +884,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     comp_st_driven = {st: [len_on_st[blp_idx], trdt_st_now[st]]
                       for st, len_on_st in trdt_st.items()}
     plot_barv_stacked(['Algorithm', 'Primary/Secondary'], comp_st_driven, c_st,
-                      title=city, save=plot_folder+'{:}_comp_st_driven_{:d}{:}'
+                      title='', save=plot_folder+'{:}_comp_st_driven_{:d}{:}'
                       .format(save, rev, minmode), plot_format=plot_format)
 
     diff_core = {}
