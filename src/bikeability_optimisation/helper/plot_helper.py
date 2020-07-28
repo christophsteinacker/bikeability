@@ -12,6 +12,7 @@ from copy import deepcopy
 def magnitude(x):
     return int(math.floor(math.log10(x)))
 
+
 def calc_current_state(nxG, trip_nbrs, bike_paths=None):
     """
     Calculates the data for the current bike path situation. If no bike

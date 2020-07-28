@@ -80,8 +80,8 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
     print('Minimal station usage: {}'.format(min_n))
 
     fig1, ax1 = plt.subplots(dpi=dpi)
-    ax1.hist([value for key, value in n_rel.items() if value != max_n+1],
-             bins=ceil((max_n - min_n) / 100))
+    #ax1.hist([value for key, value in n_rel.items() if value != max_n+1],
+    #         bins=ceil((max_n - min_n) / 100))
     ax1.set_xlabel('# of Trips')
     ax1.set_ylabel('# of Stations', fontsize=12)
     ax1.tick_params(axis='both', labelsize=12)
@@ -1109,6 +1109,7 @@ def plot_city(city, save, polygon, input_folder, output_folder, comp_folder,
                           allow_pickle=True)
 
     end = max([get_end(d[4], data_now[3], m[0]) for m, d in data.items()])
+    # end = max([len(d[4]) for m, d in data.items()])
     print('Cut after: ', end)
 
     c_norm = ['darkblue', 'mediumblue', 'cornflowerblue']
