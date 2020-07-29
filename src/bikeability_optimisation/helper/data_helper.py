@@ -177,9 +177,11 @@ def load_trips(G, path_to_trips, polygon=None, nn_method='kdtree', delim=','):
         stations.add(k[1])
 
     trip_nbrs_rexcl = {k: v for k, v in trip_nbrs.items() if not k[0] == k[1]}
-    print('Number of Stations: {}, Number of trips: {} (rt incl: {})'
+    print('Number of Stations: {}, Number of trips: {} (rt incl: {}), '
+          'Unique trips: {} (rt incl {})'
           .format(len(stations), sum(trip_nbrs_rexcl.values()),
-                  sum(trip_nbrs.values())))
+                  sum(trip_nbrs.values()), len(trip_nbrs_rexcl.keys()),
+                  len(trip_nbrs.keys())))
     return trip_nbrs, stations
 
 
