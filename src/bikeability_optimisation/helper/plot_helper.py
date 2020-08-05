@@ -285,6 +285,9 @@ def calc_scale(base_city, cities, saves, comp_folder, mode):
     for city in cities_comp:
         m_idx = []
         for idx, x in enumerate(ba[city]):
+            # Create list where each value corresponds to the index of the
+            # item from the base city ba list closest to the ba value of the
+            # comparing city at the current index.
             m_idx.append(min(range(len(ba_base)),
                              key=lambda i: abs(ba_base[i] - x)))
         min_idx[city] = m_idx
