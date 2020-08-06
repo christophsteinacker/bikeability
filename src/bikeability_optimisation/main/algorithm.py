@@ -1,6 +1,8 @@
 """
 The core algorithm of the bikeability optimisation project.
 """
+import h5py
+import json
 import osmnx as ox
 from bikeability_optimisation.helper.algorithm_helper import *
 from bikeability_optimisation.helper.logger_helper import *
@@ -124,32 +126,48 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
                         .format(next_log), stamptime=time.localtime(),
                         start=starttime, end=time.time(), stamp=True,
                         difference=True)
-            data = np.array([edited_edges, edited_edges_nx, total_cost,
-                             bike_path_perc, total_real_distance_traveled,
-                             total_felt_distance_traveled, nbr_on_street,
-                             len_saved, nbr_of_cbc, gcbc_size], dtype=object)
-            loc = int_out_folder+'{0:}_data_mode_{1:d}{2:}_{3:02d}.npy'\
-                .format(save, rev, minmode, log_idx+1)
-            mes = 'Saved at BLP {0:} as {1:}_data_mode_{2:d}{3:}_{4:02d}.npy'\
-                .format(next_log, save, rev, minmode, log_idx+1)
-            save_data(loc, data, logpath, mes)
+            loc = output_folder+'{0:}_data_mode_{1:d}{2:}.hdf5'\
+                .formatformat(save, rev, minmode)
+            hf = h5py.File(loc, 'a')
+            grp = hf.create_group('{:02d}'.format(log_idx+1))
+            grp['ee_nk'] = edited_edges
+            grp['ee_nx'] = edited_edges_nx
+            grp['bpp'] = bike_path_perc
+            grp['cost'] = total_cost
+            grp['trdt'] = json.dumps(total_real_distance_traveled)
+            grp['tfdt'] = json.dumps(total_felt_distance_traveled)
+            grp['nos'] = nbr_on_street
+            grp['length saved'] = len_saved
+            grp['nbr of cbc'] = nbr_of_cbc
+            grp['gcbc size'] = gcbc_size
+            hf.close()
             log_idx += 1
 
     # Save data of this run to data array
-    data = np.array([edited_edges, edited_edges_nx, total_cost, bike_path_perc,
-                     total_real_distance_traveled,
-                     total_felt_distance_traveled, nbr_on_street, len_saved,
-                     nbr_of_cbc, gcbc_size], dtype=object)
-    return data
+    loc_hf = '{0:}{1:}_data_mode_{2:d}{3:}.hdf5'\
+        .format(output_folder, save, rev, minmode)
+    hf = h5py.File(loc_hf, 'a')
+    grp = hf.create_group('all')
+    grp['ee_nk'] = edited_edges
+    grp['ee_nx'] = edited_edges_nx
+    grp['bpp'] = bike_path_perc
+    grp['cost'] = total_cost
+    grp['trdt'] = json.dumps(total_real_distance_traveled)
+    grp['tfdt'] = json.dumps(total_felt_distance_traveled)
+    grp['nos'] = nbr_on_street
+    grp['length saved'] = len_saved
+    grp['nbr of cbc'] = nbr_of_cbc
+    grp['gcbc size'] = gcbc_size
+    hf.close()
 
 
-def run_simulation(place, save, input_folder, output_folder, log_folder,
+def run_simulation(city, save, input_folder, output_folder, log_folder,
                    mode=(0, False)):
     """
     Prepares everything to run the core algorithm. All data will be saved to
     the given folders.
-    :param place: Name of the place.
-    :type place: str
+    :param city: Name of the city.
+    :type city: str
     :param save: save name of everything associated with de place.
     :type save: str
     :param input_folder: Path to the input folder.
@@ -162,22 +180,27 @@ def run_simulation(place, save, input_folder, output_folder, log_folder,
     :type mode: tuple
     :return: None
     """
+    rev = mode[0]
+    minmode = mode[1]
+
     # Check if necessary folders exists, otherwise create.
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     Path(log_folder).mkdir(parents=True, exist_ok=True)
+
+    loc_hf = output_folder+'{:}_data_mode_{:d}{:}.hdf5'.format(save,
+                                                               rev, minmode)
+    hf = h5py.File(loc_hf, 'w')
+    hf.attrs['city'] = city
 
     # Start date and time for logging.
     sd = time.localtime()
     starttime = time.time()
 
-    rev = mode[0]
-    minmode = mode[1]
-
     logpath = log_folder + '{:s}_{:d}{:}.txt'.format(save, rev, minmode)
     # Initial Log
     log_to_file(logpath,
                 'Started optimising {} with minmode {} and reversed {}'
-                .format(place, minmode, rev),
+                .format(city, minmode, rev),
                 start=sd, stamp=False, difference=False)
 
     nxG = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
@@ -186,17 +209,29 @@ def run_simulation(place, save, input_folder, output_folder, log_folder,
                           node_type=int)"""
     nxG = nx.Graph(nxG.to_undirected())
     print('Simulating "{}" with {} nodes and {} edges.'
-          .format(place, len(nxG.nodes), len(nxG.edges)))
+          .format(city, len(nxG.nodes), len(nxG.edges)))
+    hf.attrs['nodes'] = len(nxG.nodes)
+    hf.attrs['edges'] = len(nxG.edges)
 
     trip_nbrs_nx = np.load(input_folder+'{}_demand.npy'.format(save),
                            allow_pickle=True)[0]
+
+    stations = [station for trip_id, nbr_of_trips in trip_nbrs_nx.items() for
+                station in trip_id]
+    stations = list(set(stations))
+    hf.attrs['nbr of stations'] = len(stations)
+    hf['stations'] = stations
+
     print('Number of trips: {}'.format(sum(trip_nbrs_nx.values())))
+    hf.attrs['total trips (incl round trips)'] = sum(trip_nbrs_nx.values())
 
     # Exclude round trips
     trip_nbrs_nx = {trip_id: nbr_of_trips for trip_id, nbr_of_trips
                     in trip_nbrs_nx.items() if not trip_id[0] == trip_id[1]}
     print('Number of trips, round trips excluded: {}'.
           format(sum(trip_nbrs_nx.values())))
+    hf.attrs['total trips'] = sum(trip_nbrs_nx.values())
+
 
     # Convert networkx graph into network kit graph
     nkG = nk.nxadapter.nx2nk(nxG, weightAttr='length')
@@ -257,19 +292,15 @@ def run_simulation(place, save, input_folder, output_folder, log_folder,
             nkG.setWeight(edge[0], edge[1], edge_info['felt length'])
 
     # Calculate data
-    data = core_algorithm(nkG=nkG, nkG_edited=nkG_edited, edge_dict=edge_dict,
-                          trips_dict=trips_dict, nk2nx_nodes=nk2nx_nodes,
-                          nk2nx_edges=nk2nx_edges, street_cost=street_cost,
-                          starttime=starttime, logpath=logpath,
-                          output_folder=output_folder, save=save,
-                          minmode=minmode, rev=rev)
-
-    np.save(output_folder + '{:s}_data_mode_{:d}{:d}.npy'.format(save, rev,
-                                                                 minmode),
-            data)
+    core_algorithm(nkG=nkG, nkG_edited=nkG_edited, edge_dict=edge_dict,
+                   trips_dict=trips_dict, nk2nx_nodes=nk2nx_nodes,
+                   nk2nx_edges=nk2nx_edges, street_cost=street_cost,
+                   starttime=starttime, logpath=logpath,
+                   output_folder=output_folder, save=save,
+                   minmode=minmode, rev=rev)
 
     # Print computation time to console and write it to the log.
     log_to_file(logpath, 'Finished optimising {0:s}'
-                .format(place), stamptime=time.localtime(), start=starttime,
+                .format(city), stamptime=time.localtime(), start=starttime,
                 end=time.time(), stamp=True, difference=True)
     return 0
