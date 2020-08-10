@@ -127,7 +127,7 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
                         start=starttime, end=time.time(), stamp=True,
                         difference=True)
             loc = output_folder+'{0:}_data_mode_{1:d}{2:}.hdf5'\
-                .formatformat(save, rev, minmode)
+                .format(save, rev, minmode)
             hf = h5py.File(loc, 'a')
             grp = hf.create_group('{:02d}'.format(log_idx+1))
             grp['ee_nk'] = edited_edges
