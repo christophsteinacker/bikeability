@@ -311,3 +311,12 @@ def calc_scale(base_city, cities, saves, comp_folder, mode):
         else:
             scale_mean[city] = np.mean(scale[city][1:])
     return scale_mean
+
+
+def get_edge_color(G, edges, attr, color):
+    nx.set_edge_attributes(G, False, 'bike path')
+    for edge in edges:
+        G[edge[0]][edge[1]][0][attr] = True
+        G[edge[1]][edge[0]][0][attr] = True
+    return [color if data['bike path'] else '#999999' for u, v, data in
+            G.edges(keys=False, data=True)]

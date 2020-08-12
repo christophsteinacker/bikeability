@@ -145,12 +145,24 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
     # plt.show()
 
 
-def plot_edited_edges(city, save, G, edited_edges, bike_path_perc, node_size,
-                      rev, minmode, plot_folder, plot_format='png'):
-    print('Plotting edited edges.')
+def plot_edges(G, edge_color, node_size, save_path, plot_format='png',
+               fig_size=(6, 6), dpi=150, fig_title=''):
+
+    fig, ax = ox.plot_graph(G, bgcolor='#ffffff', node_size=node_size,
+                            node_zorder=3, node_color='C0',
+                            edge_color=edge_color, figsize=fig_size,
+                            dpi=dpi, show=False, close=False)
+    fig.suptitle(fig_title, fontsize=24)
+    fig.savefig(save_path, format=plot_format, bbox_inches='tight')
+    plt.close(fig)
+
+
+def plot_bp_evo(save, G, edited_edges, bike_path_perc, cut, ps,
+                node_size, rev, minmode, plot_folder, plot_format='png'):
+    print('Plotting bike path evolution.')
     plot_folder_evo = plot_folder + 'evolution/'
     Path(plot_folder_evo).mkdir(parents=True, exist_ok=True)
-
+    edited_color = '#0000FF'
     nx.set_edge_attributes(G, False, 'bike path')
     if rev:
         ee = edited_edges
@@ -162,29 +174,36 @@ def plot_edited_edges(city, save, G, edited_edges, bike_path_perc, node_size,
     plots = np.linspace(0, 1, 101)
     for i, j in enumerate(plots):
         idx = next(x for x, val in enumerate(blp) if val >= j)
-        ee_cut = ee[:idx]
-        for edge in ee_cut:
+        ee_evo = ee[:idx]
+        for edge in ee_evo:
             G[edge[0]][edge[1]][0]['bike path'] = True
             G[edge[1]][edge[0]][0]['bike path'] = True
-        ec = ['#0000FF' if data['bike path'] else '#999999' for
-              u, v, data in G.edges(keys=False, data=True)]
-        fig, ax = ox.plot_graph(G, bgcolor='#ffffff', node_size=node_size,
-                                node_zorder=3, node_color='C0', edge_color=ec,
-                                figsize=(6, 6), dpi=300, show=False,
-                                close=False)
-        fig.suptitle('Bike Path Percentage: {0:.0%} in {1:}'.format(blp[idx],
-                                                                    city),
-                     fontsize='x-large')
-        fig.savefig(plot_folder_evo + '{0:s}-edited-mode-{1:d}{2:}-{3:d}'
-                                      '.{4:s}'.format(save, rev, minmode, i,
-                                                      plot_format),
-                    format=plot_format, bbox_inches='tight')
-        plt.close(fig)
+        ec_evo = get_edge_color(G, ee_evo, 'bike path', edited_color)
+        save_path = '{:}{:}-edited-mode-{:d}{:}-{:}.{:}'.format(
+                plot_folder_evo, save, rev, minmode, i, plot_format)
+        plot_edges(G, ec_evo, node_size, save_path, plot_format=plot_format,
+                   fig_size=(6, 6), dpi=150)
+
+    nx.set_edge_attributes(G, False, 'bike path')
+    ee_cut = ee[:cut]
+    ec_cut = get_edge_color(G, ee_cut, 'bike path', edited_color)
+    save_path = '{:}{:}-edited-mode-{:d}{:}-{:}.{:}'.format(
+            plot_folder_evo, save, rev, minmode, 'cut', plot_format)
+    plot_edges(G, ec_cut, node_size, save_path, plot_format=plot_format,
+               fig_size=(6, 6), dpi=150)
+
+    nx.set_edge_attributes(G, False, 'bike path')
+    ee_ps = ee[:ps]
+    ec_ps = get_edge_color(G, ee_ps, 'bike path', edited_color)
+    save_path = '{:}{:}-edited-mode-{:d}{:}-{:}.{:}'.format(
+            plot_folder_evo, save, rev, minmode, 'ps', plot_format)
+    plot_edges(G, ec_ps, node_size, save_path, plot_format=plot_format,
+               fig_size=(6, 6), dpi=150)
 
 
-def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
-                    trip_nbrs, rev, minmode, plot_folder, plot_format='png',
-                    figsize=None, dpi=150, mode='diff'):
+def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
+                       node_size, trip_nbrs, rev, minmode, plot_folder,
+                       plot_format='png', figsize=None, dpi=150, mode='diff'):
     if figsize is None:
         figsize = [10, 10]
     nx.set_edge_attributes(G, False, 'algo')
@@ -295,10 +314,9 @@ def plot_bike_paths(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs, node_size,
                   minmode, plot_folder, plot_format=plot_format)
 
 
-def plot_bike_paths_diff(G, ee_1, ee_2, bpp_1, bpp_2, bpp_comp,
-                         node_color, node_size, save, rev, minmode,
-                         plot_folder, plot_format='png', figsize=None,
-                         dpi=150):
+def plot_bp_diff(G, ee_1, ee_2, bpp_1, bpp_2, bpp_comp, node_color,
+                 node_size, save, rev, minmode, plot_folder,
+                 plot_format='png', figsize=None, dpi=150):
     if figsize is None:
         figsize = [10, 10]
     nx.set_edge_attributes(G, False, '1')
@@ -487,7 +505,7 @@ def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
     ax.set_xticklabels(labels)
     ax.tick_params(axis='y', labelsize=16)
     ax.tick_params(axis='x', labelsize=16)
-    # ax.set_title(title, fontsize=24)
+    ax.set_title(title, fontsize=24)
 
     plt.savefig(save+'.{}'.format(plot_format), format=plot_format,
                 bbox_inches='tight')
@@ -836,19 +854,18 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
                     stations=stations, plot_folder=plot_folder,
                     plot_format=plot_format)
     for bp_mode in ['algo', 'p+s', 'diff']:
-        plot_bike_paths(city=city, save=save, G=nxG_plot,
-                        ee_algo=edited_edges_nx, ee_cs=bike_paths_now,
-                        bpp_algo=bike_path_perc, bpp_cs=bike_path_perc_now,
-                        node_size=ns, trip_nbrs=trip_nbrs, rev=rev,
-                        minmode=minmode, plot_folder=plot_folder,
-                        plot_format=plot_format, mode=bp_mode)
+        plot_bp_comparison(city=city, save=save, G=nxG_plot,
+                           ee_algo=edited_edges_nx, ee_cs=bike_paths_now,
+                           bpp_algo=bike_path_perc, bpp_cs=bike_path_perc_now,
+                           node_size=ns, trip_nbrs=trip_nbrs, rev=rev,
+                           minmode=minmode, plot_folder=plot_folder,
+                           plot_format=plot_format, mode=bp_mode)
 
     if evo:
-        plot_edited_edges(city=city, save=save, G=nxG_plot,
-                          edited_edges=edited_edges_nx,
-                          bike_path_perc=bike_path_perc, node_size=ns,
-                          rev=rev, minmode=minmode, plot_folder=plot_folder,
-                          plot_format='png')
+        plot_bp_evo(save=save, G=nxG_plot, edited_edges=edited_edges_nx,
+                    bike_path_perc=bike_path_perc, cut=cut, ps=blp_idx,
+                    node_size=ns, rev=rev, minmode=minmode,
+                    plot_folder=plot_folder, plot_format='png')
 
     # plt.show()
     plt.close('all')
@@ -883,7 +900,8 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
     fig1, ax1 = plt.subplots(dpi=150, figsize=(12, 10))
     ax1.set_xlabel('fraction of bike paths', fontsize=24)
     ax1.set_ylabel('bikeability', fontsize=24)
-    # ax1.set_title('bikeability of {}'.format(city), fontsize=14)
+    if titles:
+        ax1.set_title('bikeability of {}'.format(city), fontsize=14)
     ax1.tick_params(axis='x', labelsize=16)
     ax1.tick_params(axis='y', labelsize=16)
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1307,16 +1325,14 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     plot_barh_stacked(st_data, st, st_colors, save_plot + 'ratio_st_{:d}{:}'
                       .format(rev, minmode), plot_format=plot_format)
 
-    plot_bike_paths_diff(G, ee[dist_modes[0]], ee[dist_modes[1]],
-                         bpp[dist_modes[0]], bpp[dist_modes[1]],
-                         bpp_now[dist_modes[0]], 'k', 0, base_save, rev,
-                         minmode, plot_folder, plot_format='png', figsize=None,
-                         dpi=150)
-    plot_bike_paths_diff(G, ee[dist_modes[1]], ee[dist_modes[2]],
-                         bpp[dist_modes[1]], bpp[dist_modes[2]],
-                         bpp_now[dist_modes[1]], 'k', 0, base_save+'_ata', rev,
-                         minmode, plot_folder, plot_format='png', figsize=None,
-                         dpi=150)
+    plot_bp_diff(G, ee[dist_modes[0]], ee[dist_modes[1]],
+                 bpp[dist_modes[0]], bpp[dist_modes[1]],
+                 bpp_now[dist_modes[0]], 'k', 0, save, rev, minmode,
+                 plot_folder, plot_format='png', figsize=None, dpi=150)
+    plot_bp_diff(G, ee[dist_modes[1]], ee[dist_modes[2]],
+                 bpp[dist_modes[1]], bpp[dist_modes[2]],
+                 bpp_now[dist_modes[1]], 'k', 0, save+'_ata', rev, minmode,
+                 plot_folder, plot_format='png', figsize=None, dpi=150)
     plt.close('all')
     # plt.show()
 
