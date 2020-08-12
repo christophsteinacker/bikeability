@@ -81,23 +81,25 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
     min_n = min(n_rel.values())
     print('Minimal station usage: {}'.format(min_n))
 
-    fig1, ax1 = plt.subplots(dpi=dpi)
+    fig1, ax1 = plt.subplots(figsize=(12, 10), dpi=dpi)
+    r = magnitude(max_n)
+    ax1.set_xlim(left=0.0, right=round(max_n+0.1*max_n, -(r-1)))
     if max_n == min_n:
         bins = 1
     else:
-        bins = ceil((max_n - min_n) / 100)
+        bins = ceil((max_n - min_n) / (10**(r-2)))
     ax1.hist([value for key, value in n_rel.items() if value != max_n+1],
              bins=bins)
-    ax1.set_xlabel('# of Trips')
-    ax1.set_ylabel('# of Stations', fontsize=12)
+    ax1.set_xlabel('Number of total Trips', fontsize=24)
+    ax1.set_ylabel('Number of Stations', fontsize=24)
     ax1.tick_params(axis='both', labelsize=16)
     ax1.yaxis.set_minor_locator(AutoMinorLocator())
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
-    fig1.suptitle('Usage distribution of Stations')
+    # fig1.suptitle('Usage distribution of Stations')
 
-    fig1.savefig(plot_folder + '{:}_stations_usage_distribution.{}'
-                 .format(save, plot_format), format=plot_format)
-
+    fig1.savefig('{}{}_stations_usage_distribution.{}'
+                 .format(plot_folder, save, plot_format), format=plot_format,
+                 bbox_inches='tight')
 
     cmap_name = 'cool'
     cmap = plt.cm.get_cmap(cmap_name)
@@ -146,23 +148,22 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
 
 
 def plot_edges(G, edge_color, node_size, save_path, plot_format='png',
-               fig_size=(6, 6), dpi=150, fig_title=''):
-
-    fig, ax = ox.plot_graph(G, bgcolor='#ffffff', node_size=node_size,
-                            node_zorder=3, node_color='C0',
-                            edge_color=edge_color, figsize=fig_size,
-                            dpi=dpi, show=False, close=False)
-    fig.suptitle(fig_title, fontsize=24)
+               figsize=(12, 12), dpi=150, title=''):
+    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
+    ox.plot_graph(G, ax=ax, bgcolor='#ffffff', edge_color=edge_color,
+                  edge_linewidth=1.5, node_color='C0', node_size=node_size,
+                  node_zorder=3, show=False, close=False)
+    # fig.suptitle(title, fontsize=24)
     fig.savefig(save_path, format=plot_format, bbox_inches='tight')
     plt.close(fig)
 
 
 def plot_bp_evo(save, G, edited_edges, bike_path_perc, cut, ps,
                 node_size, rev, minmode, plot_folder, plot_format='png'):
-    print('Plotting bike path evolution.')
+    print('Begin plotting bike path evolution.')
     plot_folder_evo = plot_folder + 'evolution/'
     Path(plot_folder_evo).mkdir(parents=True, exist_ok=True)
-    edited_color = '#0000FF'
+    edited_color = 'midnightblue'
     nx.set_edge_attributes(G, False, 'bike path')
     if rev:
         ee = edited_edges
@@ -174,15 +175,15 @@ def plot_bp_evo(save, G, edited_edges, bike_path_perc, cut, ps,
     plots = np.linspace(0, 1, 101)
     for i, j in enumerate(plots):
         idx = next(x for x, val in enumerate(blp) if val >= j)
-        ee_evo = ee[:idx]
-        for edge in ee_evo:
-            G[edge[0]][edge[1]][0]['bike path'] = True
-            G[edge[1]][edge[0]][0]['bike path'] = True
-        ec_evo = get_edge_color(G, ee_evo, 'bike path', edited_color)
+        if j == 1.0:
+            ec_evo = [edited_color for e in G.edges()]
+        else:
+            ee_evo = ee[:idx]
+            ec_evo = get_edge_color(G, ee_evo, 'bike path', edited_color)
         save_path = '{:}{:}-edited-mode-{:d}{:}-{:}.{:}'.format(
                 plot_folder_evo, save, rev, minmode, i, plot_format)
         plot_edges(G, ec_evo, node_size, save_path, plot_format=plot_format,
-                   fig_size=(6, 6), dpi=150)
+                   figsize=(10, 10), dpi=150)
 
     nx.set_edge_attributes(G, False, 'bike path')
     ee_cut = ee[:cut]
@@ -190,7 +191,7 @@ def plot_bp_evo(save, G, edited_edges, bike_path_perc, cut, ps,
     save_path = '{:}{:}-edited-mode-{:d}{:}-{:}.{:}'.format(
             plot_folder_evo, save, rev, minmode, 'cut', plot_format)
     plot_edges(G, ec_cut, node_size, save_path, plot_format=plot_format,
-               fig_size=(6, 6), dpi=150)
+               figsize=(10, 10), dpi=150)
 
     nx.set_edge_attributes(G, False, 'bike path')
     ee_ps = ee[:ps]
@@ -198,7 +199,8 @@ def plot_bp_evo(save, G, edited_edges, bike_path_perc, cut, ps,
     save_path = '{:}{:}-edited-mode-{:d}{:}-{:}.{:}'.format(
             plot_folder_evo, save, rev, minmode, 'ps', plot_format)
     plot_edges(G, ec_ps, node_size, save_path, plot_format=plot_format,
-               fig_size=(6, 6), dpi=150)
+               figsize=(10, 10), dpi=150)
+    print('Finished plotting bike path evolution.')
 
 
 def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
@@ -314,11 +316,15 @@ def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
                   minmode, plot_folder, plot_format=plot_format)
 
 
-def plot_bp_diff(G, ee_1, ee_2, bpp_1, bpp_2, bpp_comp, node_color,
+def plot_bp_diff(G, ee_1, ee_2, bpp_1, bpp_2, node_color,
                  node_size, save, rev, minmode, plot_folder,
                  plot_format='png', figsize=None, dpi=150):
     if figsize is None:
         figsize = [10, 10]
+
+    plot_folder_evo = plot_folder + 'evolution/'
+    Path(plot_folder_evo).mkdir(parents=True, exist_ok=True)
+
     nx.set_edge_attributes(G, False, '1')
     nx.set_edge_attributes(G, False, '2')
 
@@ -328,52 +334,46 @@ def plot_bp_diff(G, ee_1, ee_2, bpp_1, bpp_2, bpp_comp, node_color,
         ee_2 = list(reversed(ee_2))
         bpp_2 = list(reversed(bpp_2))
 
-    idx_1 = min(range(len(bpp_1)), key=lambda i: abs(bpp_1[i] - bpp_comp))
-    ee_1_cut = ee_1[:idx_1]
-    idx_2 = min(range(len(bpp_2)), key=lambda i: abs(bpp_2[i] - bpp_comp))
-    ee_2_cut = ee_2[:idx_2]
-
-    for edge in ee_1_cut:
-        G[edge[0]][edge[1]][0]['1'] = True
-        G[edge[1]][edge[0]][0]['1'] = True
-    for edge in ee_2_cut:
-        G[edge[0]][edge[1]][0]['2'] = True
-        G[edge[1]][edge[0]][0]['2'] = True
-
-    ec = []
-    unused = []
-    ee_1_only = []
-    ee_2_only = []
-    ee_both = []
-
-    color_algo = 'midnightblue'
-    color_cs = 'darkorange'
+    color_1 = 'midnightblue'
+    color_2 = 'darkorange'
     color_both = 'crimson'
     color_unused = '#999999'
 
-    for u, v, k, data in G.edges(keys=True, data=True):
-        if data['1'] and data['2']:
-            ec.append(color_both)
-            ee_both.append((u, v, k))
-        elif data['1'] and not data['2']:
-            ec.append(color_algo)
-            ee_1_only.append((u, v, k))
-        elif not data['1'] and data['2']:
-            ec.append(color_cs)
-            ee_2_only.append((u, v, k))
-        else:
-            ec.append(color_unused)
-            unused.append((u, v, k))
-
-    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
+    plots = np.linspace(0, 1, 101)
+    for i, j in enumerate(plots):
+        idx_1 = next(x for x, val in enumerate(bpp_1) if val >= j)
+        ee_1_evo = ee_1[:idx_1]
+        idx_2 = next(x for x, val in enumerate(bpp_2) if val >= j)
+        ee_2_evo = ee_2[:idx_2]
+        for edge in ee_1_evo:
+            G[edge[0]][edge[1]][0]['1'] = True
+            G[edge[1]][edge[0]][0]['1'] = True
+        for edge in ee_2_evo:
+            G[edge[0]][edge[1]][0]['2'] = True
+            G[edge[1]][edge[0]][0]['2'] = True
+        ec = []
+        for u, v, k, data in G.edges(keys=True, data=True):
+            if data['1'] and data['2']:
+                ec.append(color_both)
+            elif data['1'] and not data['2']:
+                ec.append(color_1)
+            elif not data['1'] and data['2']:
+                ec.append(color_2)
+            else:
+                ec.append(color_unused)
+        save_path = '{:}{:}-distr-comp-evo-{:d}{:}-{:}.{:}'.format(
+                plot_folder_evo, save, rev, minmode, i, plot_format)
+        plot_edges(G, ec, node_size, save_path, plot_format=plot_format,
+                   figsize=figsize, dpi=dpi)
+    """fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
     ox.plot_graph(G, bgcolor='#ffffff', ax=ax,
                   node_size=node_size, node_color='C0', node_zorder=3,
                   edge_linewidth=1.5, edge_color=ec,
                   show=False, close=False)
     save_plot = '{}{}_distr_comp_'.format(plot_folder, save)
     plt.savefig('{}.{}'.format(save_plot, plot_format),
-                format=plot_format, bbox_inches='tight')
-    plt.close(fig)
+                format=plot_format, bbox_inches='tight')"""
+    # plt.close(fig)
 
 
 def plot_barh(data, colors, save, figsize=None, plot_format='png',
@@ -612,7 +612,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
 
     print('Mode: {:d}{:}, ba=1 after: {:d}, bpp at ba=1: {:3.2f}, '
           'bpp big roads: {:3.2f}, edges: {:}, max bpp: {:3.2f}'
-          .format(rev, minmode, end, blp[end], blp_now,
+          .format(rev, minmode, end, blp[end], blp_now*blp[end],
                   len(edited_edges_nx), max_bpp))
 
     # Plotting
@@ -743,8 +743,8 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
                  bbox_inches='tight')
 
     fig3, ax3 = plt.subplots(dpi=150, figsize=(12, 10))
-    ax3.set_xlim(-0.05, 1.05)
-    ax3.set_ylim(-0.05, 1.15)
+    ax3.set_xlim(0.0, 1.0)
+    ax3.set_ylim(0.0, 1.0)
 
     c_st = {'primary': 'darkblue', 'secondary': 'darkgreen',
             'tertiary': 'darkcyan', 'residential': 'darkorange',
@@ -865,7 +865,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
         plot_bp_evo(save=save, G=nxG_plot, edited_edges=edited_edges_nx,
                     bike_path_perc=bike_path_perc, cut=cut, ps=blp_idx,
                     node_size=ns, rev=rev, minmode=minmode,
-                    plot_folder=plot_folder, plot_format='png')
+                    plot_folder=plot_folder, plot_format=plot_format)
 
     # plt.show()
     plt.close('all')
@@ -873,6 +873,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     hf_group['edited edges'] = edited_edges_nx
     hf_group['bpp'] = blp_cut
     hf_group['bpp at end'] = blp[end]
+    hf_group['bpp complete'] = bike_path_perc
     hf_group['ba'] = ba[:end]
     hf_group['ba for comp'] = ba_y
     hf_group['cost'] = total_cost[:end]
@@ -1088,7 +1089,7 @@ def plot_city(city, save, polygon, input_folder, output_folder, comp_folder,
     st_ratio = get_street_type_ratio(nxG_calc)
     hf_comp['ratio street type'] = json.dumps(st_ratio)
     sn_ratio = len(stations) / len(nxG_calc.nodes())
-    hf_comp['ratio staions nodes'] = sn_ratio
+    hf_comp['ratio stations nodes'] = sn_ratio
 
     area = calc_polygon_area(polygon)
     hf_comp.attrs['area'] = area
@@ -1158,10 +1159,14 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
                           plot_folder, mode, titles=False, legends=False,
                           figsize=None,  plot_format='png'):
     if figsize is None:
-        figsize = [16, 9]
+        figsize = (12, 10)
     rev = mode[0]
     minmode = mode[1]
     mode = '{:d}{:}'.format(rev, minmode)
+
+    Path(plot_folder).mkdir(parents=True, exist_ok=True)
+
+    plt.rcdefaults()
 
     G = ox.load_graphml(filepath=graph_folder+'{}.graphml'.format(base_save),
                         node_type=int)
@@ -1178,6 +1183,7 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
 
     ee = {}
     bpp = {}
+    bpp_c = {}
     ba = {}
     cost = {}
     nos = {}
@@ -1197,12 +1203,14 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     bpp_now = {}
 
     for dist_mode in dist_modes:
-        data = h5py.File(data_folder + 'comp_{}{}.hdf5'.format(base_save,
-                                                               dist_mode), 'r')
+        save = saves[dist_mode]
+        data = h5py.File(data_folder + 'comp_{}.hdf5'.format(save), 'r')
         data_algo = data['algorithm']
         data_ps = data['p+s']
-        ee[dist_mode] = [(i[0], i[1]) for i in data_algo[mode]['ee'][()]]
+        ee[dist_mode] = [(i[0], i[1]) for i in
+                         data_algo[mode]['edited edges'][()]]
         bpp[dist_mode] = data_algo[mode]['bpp'][()]
+        bpp_c[dist_mode] = data_algo[mode]['bpp complete'][()]
         bpp_end[dist_mode] = data_algo[mode]['bpp at end'][()]
         ba[dist_mode] = data_algo[mode]['ba'][()]
         ba_y[dist_mode] = data_algo[mode]['ba for comp'][()]
@@ -1326,13 +1334,12 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
                       .format(rev, minmode), plot_format=plot_format)
 
     plot_bp_diff(G, ee[dist_modes[0]], ee[dist_modes[1]],
-                 bpp[dist_modes[0]], bpp[dist_modes[1]],
-                 bpp_now[dist_modes[0]], 'k', 0, save, rev, minmode,
-                 plot_folder, plot_format='png', figsize=None, dpi=150)
+                 bpp_c[dist_modes[0]], bpp_c[dist_modes[1]], 'k', 0, base_save,
+                 rev, minmode, plot_folder, plot_format='png')
     plot_bp_diff(G, ee[dist_modes[1]], ee[dist_modes[2]],
-                 bpp[dist_modes[1]], bpp[dist_modes[2]],
-                 bpp_now[dist_modes[1]], 'k', 0, save+'_ata', rev, minmode,
-                 plot_folder, plot_format='png', figsize=None, dpi=150)
+                 bpp_c[dist_modes[1]], bpp_c[dist_modes[2]], 'k', 0,
+                 base_save+'_ata', rev, minmode, plot_folder,
+                 plot_format='png')
     plt.close('all')
     # plt.show()
 
@@ -1379,8 +1386,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
         data_ps = data['p+s']
         bpp[city] = data_algo[mode]['bpp'][()]
         bpp_end[city] = data_algo[mode]['bpp at end'][()]
-        ba[city] = data_algo['ba'][mode][()]
-        ba_y[city] = data_algo[mode]['ba for comp']
+        ba[city] = data_algo[mode]['ba'][()]
+        ba_y[city] = data_algo[mode]['ba for comp'][()]
         ba_improve[city] = ba_y[city] - data_ps['ba'][()]
         cost[city] = data_algo[mode]['cost'][()]
         nos[city] = data_algo[mode]['nos'][()]

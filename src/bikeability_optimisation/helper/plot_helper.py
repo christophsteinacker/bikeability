@@ -2,6 +2,7 @@
 This module includes all necessary functions for the plotting functionality.
 """
 import math
+import h5py
 import pyproj
 import shapely.ops as ops
 from bikeability_optimisation.helper.algorithm_helper import *
@@ -268,12 +269,14 @@ def calc_scale(base_city, cities, saves, comp_folder, mode):
     blp = {}
     ba = {}
 
+    if isinstance(mode, tuple):
+        mode = '{:d}{}'.format(mode[0], mode[1])
+
     for city in cities:
         save = saves[city]
-        data = np.load(comp_folder+'ba_comp_{}.npy'.format(save),
-                       allow_pickle=True)
-        blp[city] = data[0][mode]
-        ba[city] = data[1][mode]
+        data = h5py.File(comp_folder+'comp_{}.hdf5'.format(save), 'r')
+        blp[city] = data['algorithm'][mode]['bpp'][()]
+        ba[city] = data['algorithm'][mode]['ba'][()]
 
     blp_base = blp[base_city]
     ba_base = ba[base_city]
