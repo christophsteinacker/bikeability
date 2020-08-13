@@ -15,6 +15,16 @@ import osmnx as ox
 from bikeability_optimisation.helper.plot_helper import *
 
 
+def plot_edge_types(G, ns, save, plot_folder, plot_format='png',
+                    figsize=(20, 20), dpi=150):
+    colors = {'primary': 'darkblue', 'secondary': 'darkgreen',
+              'tertiary': 'darkcyan', 'residential': 'darkorange'}
+    ec = get_edge_color_st(G, colors)
+    save_path = '{}{}_networt_st.{}'.format(plot_folder, save, plot_format)
+    plot_edges(G, ec, node_size=ns, save_path=save_path,
+               plot_format=plot_format, figsize=figsize, dpi=dpi)
+
+
 def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
               plot_folder, plot_format='png', figsize=(20, 20)):
     G_calc = nx.Graph(G.to_undirected())
@@ -870,16 +880,23 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     # plt.show()
     plt.close('all')
 
+    print('ba: {}, ba now: {}, los: {}, los now: {}, nos: {}, nos now: {}'
+          .format(ba_y, ba_now, los_y, los_now, nos_y, nos_now))
+
     hf_group['edited edges'] = edited_edges_nx
+    hf_group['end'] = end
     hf_group['bpp'] = blp_cut
     hf_group['bpp at end'] = blp[end]
     hf_group['bpp complete'] = bike_path_perc
     hf_group['ba'] = ba[:end]
+    hf_group['ba complete'] = ba
     hf_group['ba for comp'] = ba_y
     hf_group['cost'] = total_cost[:end]
     hf_group['nos'] = nos[:end]
+    hf_group['nos complete'] = nos
     hf_group['nos at comp'] = nos_y
     hf_group['los'] = los[:end]
+    hf_group['los complete'] = los
     hf_group['los at comp'] = los_y
     hf_group['tfdt max'] = tfdt_max
     hf_group['tfdt min'] = tfdt_min
@@ -1091,6 +1108,9 @@ def plot_city(city, save, polygon, input_folder, output_folder, comp_folder,
     sn_ratio = len(stations) / len(nxG_calc.nodes())
     hf_comp['ratio stations nodes'] = sn_ratio
 
+    ns = [75 if n in stations else 0 for n in nxG_plot.nodes()]
+    plot_edge_types(nxG_plot, ns, save, plot_folder)
+
     area = calc_polygon_area(polygon)
     hf_comp.attrs['area'] = area
     print('Area {}'.format(round(area, 1)))
@@ -1157,7 +1177,7 @@ def plot_city(city, save, polygon, input_folder, output_folder, comp_folder,
 
 def compare_distributions(city, base, base_save, graph_folder, data_folder,
                           plot_folder, mode, titles=False, legends=False,
-                          figsize=None,  plot_format='png'):
+                          figsize=None,  plot_format='png', evo=False):
     if figsize is None:
         figsize = (12, 10)
     rev = mode[0]
@@ -1182,12 +1202,20 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     color = {m: colors[idx] for idx, m in enumerate(dist_modes)}
 
     ee = {}
+    end = {}
     bpp = {}
     bpp_c = {}
+    bpp_now = {}
     ba = {}
+    ba_c = {}
+    ba_now = {}
     cost = {}
     nos = {}
+    nos_c = {}
+    nos_now = {}
     los = {}
+    los_c = {}
+    los_now = {}
     bpp_end = {}
     tfdt_min = {}
     tfdt_max = {}
@@ -1200,7 +1228,6 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     sa_ratio = {}
     ba_improve = {}
     ba_y = {}
-    bpp_now = {}
 
     for dist_mode in dist_modes:
         save = saves[dist_mode]
@@ -1209,22 +1236,29 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
         data_ps = data['p+s']
         ee[dist_mode] = [(i[0], i[1]) for i in
                          data_algo[mode]['edited edges'][()]]
+        end[dist_mode] = data_algo[mode]['end'][()]
         bpp[dist_mode] = data_algo[mode]['bpp'][()]
-        bpp_c[dist_mode] = data_algo[mode]['bpp complete'][()]
+        bpp_c[dist_mode] = list(reversed(data_algo[mode]['bpp complete'][()]))
         bpp_end[dist_mode] = data_algo[mode]['bpp at end'][()]
+        bpp_now[dist_mode] = data_ps['bpp'][()] * bpp_end[dist_mode]
         ba[dist_mode] = data_algo[mode]['ba'][()]
+        ba_c[dist_mode] = data_algo[mode]['ba complete'][()]
         ba_y[dist_mode] = data_algo[mode]['ba for comp'][()]
-        ba_improve[dist_mode] = ba_y[dist_mode] - data_ps['ba'][()]
+        ba_now[dist_mode] = data_ps['ba'][()]
+        ba_improve[dist_mode] = ba_y[dist_mode] - ba_now[dist_mode]
         cost[dist_mode] = data_algo[mode]['cost'][()]
         nos[dist_mode] = data_algo[mode]['nos'][()]
+        nos_c[dist_mode] = data_algo[mode]['nos complete'][()]
+        nos_now[dist_mode] = data_ps['nos'][()]
         los[dist_mode] = data_algo[mode]['los'][()]
+        los_c[dist_mode] = data_algo[mode]['los complete'][()]
+        los_now[dist_mode] = data_ps['los'][()]
         tfdt_min[dist_mode] = data_algo[mode]['tfdt min'][()]
         tfdt_max[dist_mode] = data_algo[mode]['tfdt max'][()]
         tfdt_rat[dist_mode] = tfdt_max[dist_mode] / tfdt_min[dist_mode]
         trdt_min[dist_mode] = data_algo[mode]['trdt min'][()]
         trdt_max[dist_mode] = data_algo[mode]['trdt max'][()]
         trdt_rat[dist_mode] = trdt_max[dist_mode] / trdt_min[dist_mode]
-        bpp_now[dist_mode] = data_ps['bpp'][()]
         st_ratio[dist_mode] = json.loads(data['ratio street type'][()])
         sn_ratio[dist_mode] = data['ratio stations nodes'][()]
         sa_ratio[dist_mode] = data['ratio stations area'][()]
@@ -1273,17 +1307,18 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     ax3.xaxis.set_minor_locator(AutoMinorLocator())
     ax3_hand = {}
 
+    cut = max(end.values())
     for dist_mode in dist_modes:
-        blp_scaled = [x * scale_x[dist_mode] for x in bpp[dist_mode]]
-        ax1.plot(bpp[dist_mode], ba[dist_mode], color=color[dist_mode],
+        bpp_m = [x / bpp_c[dist_mode][cut] for x in bpp_c[dist_mode][:cut]]
+        bpp_scaled = [x * scale_x[dist_mode] for x in bpp[dist_mode]]
+        ax1.plot(bpp_m, ba_c[dist_mode][:cut], color=color[dist_mode],
                  label='{}'.format(dist_mode))
-        ax2.plot(blp_scaled, ba[dist_mode], color=color[dist_mode],
+        ax2.plot(bpp_scaled, ba[dist_mode], color=color[dist_mode],
                  label='{}'.format(dist_mode))
-
         space = round(len(bpp[dist_mode]) / 25)
-        ax3.plot(bpp[dist_mode], nos[dist_mode], marker='v', markevery=space,
+        ax3.plot(bpp_m, nos_c[dist_mode][:cut], marker='v', markevery=space,
                  color=color[dist_mode])
-        ax32.plot(bpp[dist_mode], los[dist_mode], marker='8', markevery=space,
+        ax32.plot(bpp_m, los_c[dist_mode][:cut], marker='8', markevery=space,
                   color=color[dist_mode])
         ax3_hand[dist_mode] = mlines.Line2D([], [], color=color[dist_mode])
 
@@ -1316,10 +1351,10 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     plot_barh(scale_x, color, save_plot + 'scalefactor_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format)
     plot_barh(trdt_rat, color, save_plot + 'ratio_max_min_traveled_{:d}{:}'
-              .format(rev, minmode), plot_format=plot_format)
-    plot_barh(sn_ratio, color, save_plot + 'ratio_stations_nodes_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format,
               x_label=r'$trdt_{max} / trdt_{min}$')
+    plot_barh(sn_ratio, color, save_plot + 'ratio_stations_nodes_{:d}{:}'
+              .format(rev, minmode), plot_format=plot_format)
     plot_barh(sa_ratio, color, save_plot + 'ratio_stations_area_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format,
               x_label=r'stations / $km^{2}$')
@@ -1332,14 +1367,14 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     st_colors = ['darkblue', 'darkgreen', 'darkcyan', 'darkorange']
     plot_barh_stacked(st_data, st, st_colors, save_plot + 'ratio_st_{:d}{:}'
                       .format(rev, minmode), plot_format=plot_format)
-
-    plot_bp_diff(G, ee[dist_modes[0]], ee[dist_modes[1]],
-                 bpp_c[dist_modes[0]], bpp_c[dist_modes[1]], 'k', 0, base_save,
-                 rev, minmode, plot_folder, plot_format='png')
-    plot_bp_diff(G, ee[dist_modes[1]], ee[dist_modes[2]],
-                 bpp_c[dist_modes[1]], bpp_c[dist_modes[2]], 'k', 0,
-                 base_save+'_ata', rev, minmode, plot_folder,
-                 plot_format='png')
+    if evo:
+        plot_bp_diff(G, ee[dist_modes[0]], ee[dist_modes[1]],
+                     bpp_c[dist_modes[0]], bpp_c[dist_modes[1]], 'k', 0,
+                     base_save, rev, minmode, plot_folder, plot_format='png')
+        plot_bp_diff(G, ee[dist_modes[1]], ee[dist_modes[2]],
+                     bpp_c[dist_modes[1]], bpp_c[dist_modes[2]], 'k', 0,
+                     base_save+'_ata', rev, minmode, plot_folder,
+                     plot_format='png')
     plt.close('all')
     # plt.show()
 
@@ -1505,10 +1540,10 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     plot_barh(scale_x, color, save_plot+'scalefactor_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format)
     plot_barh(trdt_rat, color, save_plot+'ratio_max_min_traveled_{:d}{:}'
-              .format(rev, minmode), plot_format=plot_format)
-    plot_barh(sn_ratio, color, save_plot+'ratio_stations_nodes_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format,
               x_label=r'$trdt_{max} / trdt_{min}$')
+    plot_barh(sn_ratio, color, save_plot+'ratio_stations_nodes_{:d}{:}'
+              .format(rev, minmode), plot_format=plot_format)
     plot_barh(sa_ratio, color, save_plot+'ratio_stations_area_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format,
               x_label=r'stations / $km^{2}$')

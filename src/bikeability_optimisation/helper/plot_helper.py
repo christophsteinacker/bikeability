@@ -317,9 +317,14 @@ def calc_scale(base_city, cities, saves, comp_folder, mode):
 
 
 def get_edge_color(G, edges, attr, color):
-    nx.set_edge_attributes(G, False, 'bike path')
+    nx.set_edge_attributes(G, False, attr)
     for edge in edges:
         G[edge[0]][edge[1]][0][attr] = True
         G[edge[1]][edge[0]][0][attr] = True
-    return [color if data['bike path'] else '#999999' for u, v, data in
+    return [color if data[attr] else '#999999' for u, v, data in
             G.edges(keys=False, data=True)]
+
+
+def get_edge_color_st(G, colors):
+    return [colors[get_street_type_cleaned(G, e, multi=True)]
+            for e in G.edges()]
