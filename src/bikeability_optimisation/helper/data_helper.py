@@ -13,7 +13,9 @@ from matplotlib.ticker import AutoMinorLocator
 from math import ceil, cos, asin, sqrt, pi
 from shapely.geometry import Point, Polygon
 from bikeability_optimisation.helper.algorithm_helper import get_street_type
-from bikeability_optimisation.helper.plot_helper import calc_current_state
+from bikeability_optimisation.helper.plot_helper import calc_current_state, \
+    magnitude
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def read_csv(path, delim=','):
@@ -518,7 +520,8 @@ def plot_matrix(city, df, plot_folder, save, cmap=None, figsize=None,
 
     fig.suptitle('Trips in {}'.format(city), fontsize='x-large')
     plt.savefig(plot_folder+'{0:s}-matrix-{1:s}.{2:s}'
-                .format(save, scale, plot_format), format=plot_format)
+                .format(save, scale, plot_format), format=plot_format,
+                 bbox_inches='tight')
 
 
 def matrix_to_graph(df, rename_columns=None):
@@ -540,11 +543,12 @@ def plot_graph(city, G, plot_folder, node_cmap=None, edge_cmap=None, save=None,
     min_degree = min(degree)
     max_degree = max(degree)
 
+
     trips = [G[u][v]['trips'] for u, v in G.edges()]
     max_trips = max(trips)
     min_trips = min(trips)
 
-    fig, ax = plt.subplots(figsize=[20, 20], dpi=250)
+    fig, ax = plt.subplots(figsize=[10, 10], dpi=150)
     pos = nx.kamada_kawai_layout(G)
 
     nx.draw_networkx(G, pos=pos, ax=ax, with_labels=False,
@@ -552,10 +556,25 @@ def plot_graph(city, G, plot_folder, node_cmap=None, edge_cmap=None, save=None,
                      vmin=min_degree, vmax=max_degree, node_size=100,
                      edge_color=trips, edge_cmap=edge_cmap,
                      edge_vmin=min_trips, edge_vmax=max_trips)
+    sm = plt.cm.ScalarMappable(cmap=plt.cm.get_cmap('viridis'),
+                               norm=plt.Normalize(vmin=min_degree,
+                                                  vmax=max_degree))
+    sm._A = []
+    cbaxes = fig.add_axes([0.05, 0.1, 0.03, 0.8])
 
-    fig.suptitle('Trips in {}'.format(city), fontsize='x-large')
+    cbar = fig.colorbar(sm, orientation='vertical', cax=cbaxes,
+                        ticks=[min_degree, round(max_degree / 2), max_degree])
+    cbar.ax.set_yticklabels([min_degree, round(max_degree / 2), max_degree])
+
+    cbar.ax.tick_params(axis='x', labelsize=16)
+    cbar.ax.yaxis.set_ticks_position('left')
+    cbar.ax.yaxis.set_label_position('left')
+    cbar.ax.set_ylabel('Total Degree of a Station', fontsize=18)
+
+    # fig.suptitle('Trips in {}'.format(city), fontsize='x-large')
     plt.savefig(plot_folder+'{0:s}-graph-{1:s}.{2:s}'
-                .format(save, scale, plot_format), format=plot_format)
+                .format(save, scale, plot_format), format=plot_format,
+                bbox_inches='tight')
 
 
 def sort_clustering(G):
@@ -638,4 +657,4 @@ def plot_average_trip_length(average_trip_len, colors, plot_folder,
     ax.set_title('Average trip length in the city')
 
     plt.savefig(plot_folder + 'average-trip-len.{}'.format(plot_format),
-                format=plot_format)
+                format=plot_format, bbox_inches='tight')

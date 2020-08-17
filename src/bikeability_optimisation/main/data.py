@@ -134,7 +134,7 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
 def analyse_city(save, city, input_folder, output_folder, plot_folder,
                  communities=False, requests=None, requests_result=None,
                  scale='log'):
-
+    plt.rcdefaults()
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
 
@@ -151,7 +151,7 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
 
     df1 = data_to_matrix(stations, trips, scale=scale)
     plot_matrix(city, df1, plot_folder, save, cmap=None, figsize=None,
-                dpi=300, plot_format='png', scale=scale)
+                dpi=150, plot_format='png', scale=scale)
 
     G = matrix_to_graph(df1)
     plot_graph(city, G, node_cmap=None, edge_cmap=None, save=save,
@@ -160,7 +160,7 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
     stations_new = sort_clustering(G)
     df2 = data_to_matrix(stations_new, trips, scale=scale)
     plot_matrix(city, df2, plot_folder, save=save+'-cluster', cmap=None,
-                figsize=None, dpi=300, plot_format='png', scale=scale)
+                figsize=None, dpi=150, plot_format='png', scale=scale)
 
     H = matrix_to_graph(df2)
     plot_graph(city, G, node_cmap=None, edge_cmap=None, save=save+'-cluster',
