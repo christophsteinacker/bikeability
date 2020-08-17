@@ -249,7 +249,9 @@ def get_street_type_ratio(G):
     return st_len_norm
 
 
-def calc_polygon_area(polygon, unit='sqkm'):
+def calc_polygon_area(polygon, remove=None, unit='sqkm'):
+    if (not isinstance(remove, list)) ^ (remove is None):
+        remove = [remove]
     geom_area = ops.transform(
             partial(
                     pyproj.transform,
@@ -259,10 +261,24 @@ def calc_polygon_area(polygon, unit='sqkm'):
                             lat_1=polygon.bounds[1],
                             lat_2=polygon.bounds[3])),
             polygon)
+    remove_area = 0
+    if remove is not None:
+        for p in remove:
+            a_r = ops.transform(
+                partial(
+                        pyproj.transform,
+                        pyproj.Proj(init='EPSG:4326'),
+                        pyproj.Proj(
+                                proj='aea',
+                                lat_1=p.bounds[1],
+                                lat_2=p.bounds[3])),
+                p)
+            remove_area += a_r.area
+
     if unit == 'sqkm':
-        return geom_area.area / 1000000
+        return (geom_area.area - remove_area) / 1000000
     if unit == 'sqm':
-        return geom_area.area
+        return geom_area.area - remove_area
 
 
 def calc_scale(base_city, cities, saves, comp_folder, mode):

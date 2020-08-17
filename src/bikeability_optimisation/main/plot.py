@@ -13,6 +13,8 @@ import matplotlib.lines as mlines
 import osmnx as ox
 
 from bikeability_optimisation.helper.plot_helper import *
+from bikeability_optimisation.helper.data_helper import \
+    get_polygon_from_json, get_polygons_from_json
 
 
 def plot_edge_types(G, ns, save, plot_folder, plot_format='png',
@@ -452,14 +454,14 @@ def plot_barh_stacked(data, stacks, colors, save, figsize=None,
 
 
 def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
-              title=''):
+              title='', ymin=-0.1, ymax=0.7, xticks=True):
     if figsize is None:
         figsize = [10, 10]
     keys = list(data.keys())
     values = list(data.values())
 
     fig, ax = plt.subplots(dpi=150, figsize=figsize)
-    ax.set_ylim(-0.1, 0.7)
+    ax.set_ylim(ymin, ymax)
     x_pos = np.arange(len(keys))
     for idx, key in enumerate(keys):
         color = to_rgba(colors[key])
@@ -470,9 +472,9 @@ def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
         text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
         ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
                 color=text_color)
-
-    ax.set_xticks(x_pos)
-    ax.set_xticklabels(keys)
+    if xticks:
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(keys)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.set_ylabel(y_label)
     ax.set_xlabel(' ', fontsize=12)
@@ -1057,9 +1059,10 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
     # plt.show()
 
 
-def plot_city(city, save, polygon, input_folder, output_folder, comp_folder,
-              plot_folder, modes, comp_modes=False, bike_paths=None,
-              plot_evo=False, evo_for=None, plot_format='png'):
+def plot_city(city, save, polygon_folder, input_folder, output_folder,
+              comp_folder, plot_folder, modes, correct_area=False,
+              comp_modes=False,  bike_paths=None, plot_evo=False,
+              evo_for=None,  plot_format='png'):
     if evo_for is None:
         evo_for = [(False, 1)]
 
@@ -1111,7 +1114,16 @@ def plot_city(city, save, polygon, input_folder, output_folder, comp_folder,
     ns = [75 if n in stations else 0 for n in nxG_plot.nodes()]
     plot_edge_types(nxG_plot, ns, save, plot_folder)
 
-    area = calc_polygon_area(polygon)
+    polygon = get_polygon_from_json('{}{}.json'.format(polygon_folder, save))
+    remove_area = None
+    if correct_area:
+        correct_area_path = '{}{}_delete.json'.format(polygon_folder, save)
+        if Path(correct_area_path).exists():
+            remove_area = get_polygons_from_json(correct_area_path)
+        else:
+            print('No polygons for area size correction found.')
+
+    area = calc_polygon_area(polygon, remove_area)
     hf_comp.attrs['area'] = area
     print('Area {}'.format(round(area, 1)))
     sa_ratio = len(stations) / area
@@ -1537,8 +1549,9 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     fig4.savefig(save_plot + 'los_nos_{:d}{:}.{}'
                  .format(rev, minmode, plot_format), format=plot_format,
                  bbox_inches='tight')
-    plot_barh(scale_x, color, save_plot+'scalefactor_{:d}{:}'
-              .format(rev, minmode), plot_format=plot_format)
+    plot_barv(scale_x, color, save_plot+'scalefactor_{:d}{:}'
+              .format(rev, minmode), plot_format=plot_format, ymin=0, ymax=1,
+              xticks=False)
     plot_barh(trdt_rat, color, save_plot+'ratio_max_min_traveled_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format,
               x_label=r'$trdt_{max} / trdt_{min}$')

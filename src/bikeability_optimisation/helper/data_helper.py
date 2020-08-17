@@ -275,6 +275,24 @@ def get_polygon_from_json(path_to_json):
     return polygon
 
 
+def get_polygons_from_json(path_to_json):
+    """
+    Reads json at path. json can be created at http://geojson.io/.
+    :param path_to_json: file path to json.
+    :type path_to_json: str
+    :return: Polygon given by json
+    :rtype: Shapely polygon
+    """
+    with open(path_to_json) as j_file:
+        data = json.load(j_file)
+    polygons = []
+    for d in data['features']:
+        coordinates = d['geometry']['coordinates'][0]
+        coordinates = [(item[0], item[1]) for item in coordinates]
+        polygons.append(Polygon(coordinates))
+    return polygons
+
+
 def get_polygon_from_bbox(bbox):
     """
     Returns the Polygon resembled by the given bbox.
