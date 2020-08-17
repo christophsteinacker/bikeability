@@ -1,84 +1,28 @@
 """
 This module includes all necessary functions for the plotting functionality.
 """
-import math
+from math import ceil, floor, log10
 import h5py
 import pyproj
+import numpy as np
+import networkx as nx
+import osmnx as ox
+import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
+from matplotlib.colors import to_rgba, LogNorm
 import shapely.ops as ops
-from bikeability_optimisation.helper.algorithm_helper import *
+from bikeability_optimisation.helper.algorithm_helper import \
+    get_street_type_cleaned, get_street_length
+from bikeability_optimisation.helper.data_helper import get_polygon_from_bbox,\
+    get_bbox_from_polygon
 from functools import partial
 from copy import deepcopy
+import contextily as ctx
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def magnitude(x):
-    return int(math.floor(math.log10(x)))
-
-
-def calc_current_state(nxG, trip_nbrs, bike_paths=None):
-    """
-    Calculates the data for the current bike path situation. If no bike
-    paths are provided all primary and secondary roads will be assigned with a
-    bike path.
-    :param nxG: Street graph to calculate in.
-    :param trip_nbrs: Number of trips as used for the main algorithm.
-    :param bike_paths: List of edges which hav a bike path.
-    :return: Data structured as from the main algorithm.
-    :rtype: np.array
-    """
-    if bike_paths is None:
-        stypes = ['primary', 'secondary']
-        bike_paths = [e for e in nxG.edges() if
-                      get_street_type_cleaned(nxG, e, multi=False) in stypes]
-    # All street types in network
-    street_types = get_all_street_types_cleaned(nxG, multi=False)
-    # Add bike paths
-    len_on_type = {t: 0 for t in street_types}
-    len_on_type['primary'] = 0
-    len_on_type['bike path'] = 0
-
-    # Set penalties for different street types
-    penalties = {'primary': 7, 'secondary': 2.4, 'tertiary': 1.4,
-                 'residential': 1.1}
-
-    # Set cost for different street types
-    street_cost = {'primary': 1, 'secondary': 1, 'tertiary': 1,
-                   'residential': 1}
-
-    trips_dict = {t_id: {'nbr of trips': nbr_of_trips, 'nodes': [],
-                         'edges': [], 'length real': 0, 'length felt': 0,
-                         'real length on types': len_on_type,
-                         'felt length on types': len_on_type,
-                         'on street': False}
-                  for t_id, nbr_of_trips in trip_nbrs.items()}
-    edge_dict = {edge: {'felt length': get_street_length(nxG, edge),
-                        'real length': get_street_length(nxG, edge),
-                        'street type': get_street_type_cleaned(nxG, edge),
-                        'penalty': penalties[get_street_type_cleaned(nxG, edge)],
-                        'speed limit': get_speed_limit(nxG, edge),
-                        'bike path': True, 'load': 0, 'trips': []}
-                 for edge in nxG.edges()}
-
-    for edge, edge_info in edge_dict.items():
-        if edge not in bike_paths:
-            edge_info['bike path'] = False
-            edge_info['felt length'] *= edge_info['penalty']
-            nxG[edge[0]][edge[1]]['length'] *= edge_info['penalty']
-
-    calc_trips(nxG, edge_dict, trips_dict, netwx=True)
-
-    # Initialise lists
-    total_cost = get_total_cost(bike_paths, edge_dict, street_cost)
-    bike_path_perc = bike_path_percentage(edge_dict)
-    total_real_distance_traveled = total_len_on_types(trips_dict, 'real')
-    total_felt_distance_traveled = total_len_on_types(trips_dict, 'felt')
-    nbr_on_street = nbr_of_trips_on_street(trips_dict)
-
-    # Save data of this run to data array
-    data = np.array([bike_paths, total_cost, bike_path_perc,
-                     total_real_distance_traveled,
-                     total_felt_distance_traveled, nbr_on_street, edge_dict,
-                     trips_dict], dtype=object)
-    return data
+    return int(floor(log10(x)))
 
 
 def len_of_bikepath_by_type(ee, G, rev):
@@ -267,7 +211,7 @@ def calc_polygon_area(polygon, remove=None, unit='sqkm'):
             a_r = ops.transform(
                 partial(
                         pyproj.transform,
-                        pyproj.Proj(init='EPSG:4326'),
+                        pyproj.Proj('EPSG:4326'),
                         pyproj.Proj(
                                 proj='aea',
                                 lat_1=p.bounds[1],
@@ -344,3 +288,195 @@ def get_edge_color(G, edges, attr, color):
 def get_edge_color_st(G, colors):
     return [colors[get_street_type_cleaned(G, e, multi=True)]
             for e in G.edges()]
+
+
+def plot_barh(data, colors, save, figsize=None, plot_format='png',
+              x_label='', title='', dpi=150):
+    if figsize is None:
+        figsize = [16, 9]
+    keys = list(data.keys())
+    values = list(data.values())
+
+    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
+    y_pos = np.arange(len(keys))
+    max_value = max(values)
+    for idx, key in enumerate(keys):
+        color = to_rgba(colors[key])
+        ax.barh(y_pos[idx], values[idx], color=color, align='center')
+        x = values[idx] / 2
+        y = y_pos[idx]
+        if values[idx] > 0.05 * max_value:
+            r, g, b, _ = color
+            text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+            ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center',
+                    va='center', color=text_color, fontsize=16)
+        else:
+            ax.text(2*values[idx], y, '{:3.2f}'.format(values[idx]),
+                    ha='center', va='center', color='darkgrey', fontsize=16)
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(keys)
+    ax.invert_yaxis()
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_xlabel(x_label)
+    ax.set_title(title)
+
+    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
+                bbox_inches='tight')
+
+
+def plot_barh_stacked(data, stacks, colors, save, figsize=None,
+                      plot_format='png', title='', dpi=150):
+    if figsize is None:
+        figsize = [16, 9]
+
+    labels = list(data.keys())
+    values = np.array(list(data.values()))
+    values_cum = values.cumsum(axis=1)
+    colors = [to_rgba(c) for c in colors]
+
+    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
+    ax.invert_yaxis()
+    ax.xaxis.set_visible(False)
+    ax.set_xlim(0, max(np.sum(values, axis=1)))
+
+    for i, (colname, color) in enumerate(zip(stacks, colors)):
+        widths = values[:, i]
+        starts = values_cum[:, i] - widths
+        ax.barh(labels, widths, left=starts, height=0.5, label=colname,
+                color=color)
+        xcenters = starts + widths / 2
+
+        r, g, b, _ = color
+        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        for y, (x, c) in enumerate(zip(xcenters, widths)):
+            if c != 0.0:
+                ax.text(x, y, '{:3.2f}'.format(c), ha='center', va='center',
+                        color=text_color)
+    ax.legend(ncol=len(stacks), bbox_to_anchor=(0, 1), loc='lower left',
+              fontsize='small')
+    ax.set_title(title)
+    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
+                bbox_inches='tight')
+
+
+def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
+              title='', ymin=-0.1, ymax=0.7, xticks=True, dpi=150):
+    if figsize is None:
+        figsize = [10, 10]
+    keys = list(data.keys())
+    values = list(data.values())
+
+    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
+    ax.set_ylim(ymin, ymax)
+    x_pos = np.arange(len(keys))
+    for idx, key in enumerate(keys):
+        color = to_rgba(colors[key])
+        ax.bar(x_pos[idx], values[idx], color=color, align='center')
+        y = values[idx] / 2
+        x = x_pos[idx]
+        r, g, b, _ = color
+        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
+                color=text_color)
+    if xticks:
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels(keys)
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_ylabel(y_label)
+    ax.set_xlabel(' ', fontsize=12)
+    ax.set_title(title)
+
+    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
+                bbox_inches='tight')
+
+
+def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
+                      width=0.8, figsize=None, dpi=150, plot_format='png'):
+    if figsize is None:
+        figsize = [10, 12]
+
+    stacks = list(data.keys())
+    values = list(data.values())
+    x_pos = np.arange((len(labels)))
+
+    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
+    ax.set_ylim(0.0, 1.0)
+    bottom = np.zeros(len(values[0]))
+    for idx in range(len(stacks)):
+        ax.bar(x_pos, values[idx], width, label=stacks[idx],
+               bottom=bottom, color=colors[stacks[idx]])
+        for v_idx, v in enumerate(values[idx]):
+            if v > 0.05:
+                color = to_rgba(colors[stacks[idx]])
+                y = bottom[v_idx] + v / 2
+                x = x_pos[v_idx]
+                r, g, b, _ = color
+                text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+                ax.text(x, y, '{:3.2f}'.format(v), ha='center',
+                        va='center', color=text_color, fontsize=16)
+        bottom = [sum(x) for x in zip(bottom, values[idx])]
+        print(stacks[idx], values[idx])
+
+    ax.set_ylabel(ylabel, fontsize=24)
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(labels)
+    ax.tick_params(axis='y', labelsize=16)
+    ax.tick_params(axis='x', labelsize=16)
+    ax.set_title(title, fontsize=24)
+
+    plt.savefig(save+'.{}'.format(plot_format), format=plot_format,
+                bbox_inches='tight')
+
+
+def plot_histogram(data, save_path, bins=None, cumulative=False, xlabel='',
+                   ylabel='', xlim=None,  plot_format='png', dpi=150):
+    max_d = max(data)
+    min_d = min(data)
+    r = magnitude(max_d)
+
+    fig1, ax1 = plt.subplots(figsize=(12, 10), dpi=dpi)
+    ax1.set_xlim(left=0.0, right=round(max_d + 0.1 * max_d, -(r - 1)))
+    if xlim is not None:
+        ax1.set_xlim(left=xlim[0], right=xlim[1])
+    if bins is None:
+        if max_d == min_d:
+            bins = 1
+        elif (max_d - min_d) <= 200:
+            bins = 50
+        else:
+            bins = ceil((max_d - min_d) / (10 ** (r - 2)))
+    ax1.hist(data, bins=bins, align='mid', cumulative=cumulative)
+    ax1.set_xlabel(xlabel, fontsize=24)
+    ax1.set_ylabel(ylabel, fontsize=24)
+    ax1.tick_params(axis='both', labelsize=16)
+    ax1.yaxis.set_minor_locator(AutoMinorLocator())
+    ax1.xaxis.set_minor_locator(AutoMinorLocator())
+
+    fig1.savefig('{}.{}'.format(save_path, plot_format), format=plot_format,
+                 bbox_inches='tight')
+
+
+def plot_matrix(city, df, plot_folder, save, cmap=None, figsize=None,
+                dpi=150, plot_format='png'):
+    if cmap is None:
+        cmap = plt.cm.get_cmap('viridis_r')
+    if figsize is None:
+        figsize = [10, 10]
+
+    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+    c = ax.pcolor(df, cmap=cmap, norm=LogNorm(vmin=df.min().min(),
+                                                     vmax=df.max().max()))
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('bottom', size="5%", pad=0.05)
+    plt.colorbar(c, cax=cax, orientation='horizontal')
+    ax.tick_params(axis='x', which='both', bottom=False, top=False,
+                   labelbottom=False)
+    ax.tick_params(axis='y', which='both', left=False, right=False,
+                   labelleft=False)
+    cax.set_xlabel('Total Trips', fontsize=18)
+
+    # ax.set_title('Trips in {}'.format(city), fontsize='x-large')
+    fig.savefig('{}{}_od_matrix.{}'.format(plot_folder, save, plot_format),
+                format=plot_format, bbox_inches='tight')

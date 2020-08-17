@@ -1,20 +1,165 @@
 from math import ceil
-import h5py
 import json
-import matplotlib.pyplot as plt
 # import matplotlib.patches as mpatches
-from matplotlib.colors import rgb2hex, to_rgba
-from matplotlib.ticker import AutoMinorLocator, MultipleLocator
+from matplotlib.colors import rgb2hex, Normalize, LogNorm
 from matplotlib.legend_handler import HandlerTuple
 from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
 from pathlib import Path
 import matplotlib.lines as mlines
 import osmnx as ox
-
+from scipy import stats
+from collections import Counter
 from bikeability_optimisation.helper.plot_helper import *
 from bikeability_optimisation.helper.data_helper import \
     get_polygon_from_json, get_polygons_from_json
+from bikeability_optimisation.helper.algorithm_helper import calc_current_state
+
+
+def plot_meta_graph(city, G, plot_folder, node_cmap=None, edge_cmap=None,
+                    save=None, node_pos=None, bg_polygon=None, bg_nominatim=1,
+                    plot_format='png'):
+    if node_cmap is None:
+        node_cmap = plt.cm.get_cmap('viridis_r')
+    if edge_cmap is None:
+        edge_cmap = plt.cm.get_cmap('Greys')
+    if node_pos is None:
+        node_pos = nx.kamada_kawai_layout(G)
+
+    degree = [x[1] for x in nx.degree(G)]
+    degree_log = [np.log10(x) for x in degree]
+    min_degree = min(degree)
+    min_degree_log = np.log10(min_degree)
+    max_degree = max(degree)
+    max_degree_log = np.log10(max_degree)
+
+    trips = [G[u][v]['trips'] for u, v in G.edges()]
+    trips_log = [np.log10(x) for x in trips]
+    max_trips = max(trips)
+    max_trips_log = np.log10(max_trips)
+    if round(max_trips_log) - max_trips_log < 0.05:
+        norm_trips_max = 10**round(max_trips_log)
+    else:
+        norm_trips_max = max_trips
+    min_trips = min(trips)
+    min_trips_log = np.log10(min_trips)
+
+    fig, ax = plt.subplots(figsize=[10, 10], dpi=150)
+    if bg_polygon is not None:
+        df = ox.geocode_to_gdf(city, which_result=bg_nominatim)
+        df['geometry'] = get_polygon_from_bbox(get_bbox_from_polygon(
+                bg_polygon))
+        df = df.to_crs('epsg:3857')
+        df.plot(alpha=0, ax=ax)
+        ctx.add_basemap(ax)  # , url=ctx.providers.Stamen.TonerLite
+    nx.draw_networkx(G, pos=node_pos, ax=ax, with_labels=False,
+                     node_color=degree, cmap=node_cmap,
+                     vmin=min_degree, vmax=max_degree, node_size=100,
+                     edge_color=trips_log, edge_cmap=edge_cmap,
+                     edge_vmin=min_trips_log, edge_vmax=round(max_trips_log))
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.axis('off')
+    sm_1 = plt.cm.ScalarMappable(cmap=node_cmap,
+                                 norm=Normalize(vmin=min_degree,
+                                                vmax=max_degree))
+    sm_2 = plt.cm.ScalarMappable(cmap=edge_cmap,
+                                 norm=LogNorm(vmin=min_trips,
+                                              vmax=norm_trips_max))
+
+    sm_1._A = []
+    sm_2._A = []
+    cbaxes_1 = fig.add_axes([0.1, 0.1, 0.03, 0.8])
+    cbar_1 = fig.colorbar(sm_1, orientation='vertical', cax=cbaxes_1)
+    cbar_1.ax.tick_params(axis='x', labelsize=16)
+    cbar_1.ax.yaxis.set_ticks_position('left')
+    cbar_1.ax.yaxis.set_label_position('left')
+    cbar_1.ax.set_ylabel('Total Degree of a Station', fontsize=18)
+
+    cbaxes_2 = fig.add_axes([0.9, 0.1, 0.03, 0.8])
+    cbar_2 = fig.colorbar(sm_2, orientation='vertical', cax=cbaxes_2)
+    cbar_2.ax.tick_params(axis='x', labelsize=16)
+    cbar_2.ax.yaxis.set_ticks_position('right')
+    cbar_2.ax.yaxis.set_label_position('right')
+    cbar_2.ax.set_ylabel('Total Trips', fontsize=18)
+
+    # fig.suptitle('Trips in {}'.format(city), fontsize='x-large')
+    fig.savefig('{}{}_meta_graph.{}'.format(plot_folder, save,  plot_format),
+                format=plot_format,  bbox_inches='tight')
+    return degree
+
+
+def plot_stats(saves, colors, data_folder, plot_folder,
+               plot_format='png', figsize=None, dpi=150):
+    plt.rcdefaults()
+    Path(plot_folder).mkdir(parents=True, exist_ok=True)
+
+    degree = {}
+    trips = {}
+    avg_trip_len = {}
+    for city, save in saves.items():
+        print(city)
+        city_plot = plot_folder+'{}/'.format(save)
+        Path(city_plot).mkdir(parents=True, exist_ok=True)
+        data = h5py.File('{0:}{1:}/{1:}_analysis.hdf5'.format(data_folder,
+                                                              save), 'r')
+        degree[city] = data['station degree'][()]
+        if min(degree[city]) <= 50:
+            hist_xlim = (0, max(degree[city]) + 1)
+        else:
+            hist_xlim = (min(degree[city]-10), max(degree[city]) + 1)
+        bins = hist_xlim[1] - hist_xlim[0]
+        plot_histogram(degree[city], '{}{}_degree'.format(city_plot, save),
+                       bins=bins, xlim=hist_xlim,
+                       xlabel='Total Degree', ylabel='# of Stations',
+                       plot_format=plot_format, dpi=dpi)
+        trips[city] = data['trips'][()]
+        if min(trips[city]) <= 50:
+            hist_xlim = (0, max(trips[city]) + 1)
+        else:
+            hist_xlim = (min(trips[city]-10), max(trips[city]) + 1)
+        bins = hist_xlim[1] - hist_xlim[0]
+        plot_histogram(trips[city], '{}{}_trips'.format(city_plot, save),
+                       bins=len(set(trips[city])), xlim=hist_xlim,
+                       xlabel='Cyclists per Trip', ylabel='# of Trips',
+                       plot_format=plot_format, dpi=dpi)
+        plot_histogram(trips[city], '{}{}_trips_cum'.format(city_plot, save),
+                       bins=len(set(trips[city])), xlim=hist_xlim,
+                       cumulative=True,
+                       xlabel='Cyclists per Trip', ylabel='# of Trips',
+                       plot_format=plot_format, dpi=dpi)
+        avg_trip_len[city] = data['avg trip length'][()]
+
+    deg_median = {}
+    deg_mean = {}
+    deg_std = {}
+    trip_median = {}
+    trip_mean = {}
+    trip_std = {}
+    for k, v in degree.items():
+        deg_mean[k] = np.mean(v)
+        deg_median[k] = np.median(v)
+        deg_std[k] = stats.tstd(v)
+    plot_barh(deg_mean, colors, plot_folder+'deg_mean',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(deg_median, colors, plot_folder+'deg_median',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(deg_std, colors, plot_folder+'deg_std',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+
+    for k, v in trips.items():
+        trip_median[k] = np.mean(v)
+        trip_mean[k] = np.median(v)
+        trip_std[k] = stats.tstd(v)
+    plot_barh(trip_median, colors, plot_folder+'trip_mean',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(trip_mean, colors, plot_folder+'trip_median',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(trip_std, colors, plot_folder+'trip_std',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+
+    plot_barh(avg_trip_len, colors, plot_folder+'avg_trip_len',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
 
 
 def plot_edge_types(G, ns, save, plot_folder, plot_format='png',
@@ -93,25 +238,15 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
     min_n = min(n_rel.values())
     print('Minimal station usage: {}'.format(min_n))
 
-    fig1, ax1 = plt.subplots(figsize=(12, 10), dpi=dpi)
     r = magnitude(max_n)
-    ax1.set_xlim(left=0.0, right=round(max_n+0.1*max_n, -(r-1)))
-    if max_n == min_n:
-        bins = 1
-    else:
-        bins = ceil((max_n - min_n) / (10**(r-2)))
-    ax1.hist([value for key, value in n_rel.items() if value != max_n+1],
-             bins=bins)
-    ax1.set_xlabel('Number of total Trips', fontsize=24)
-    ax1.set_ylabel('Number of Stations', fontsize=24)
-    ax1.tick_params(axis='both', labelsize=16)
-    ax1.yaxis.set_minor_locator(AutoMinorLocator())
-    ax1.xaxis.set_minor_locator(AutoMinorLocator())
-    # fig1.suptitle('Usage distribution of Stations')
+    hist_xlim = (0.0, round(max_n+0.1*max_n, -(r-1)))
 
-    fig1.savefig('{}{}_stations_usage_distribution.{}'
-                 .format(plot_folder, save, plot_format), format=plot_format,
-                 bbox_inches='tight')
+    hist_data = [value for key, value in n_rel.items() if value != max_n+1]
+    hist_save = '{}{}_stations_usage_distribution'.format(plot_folder, save)
+    hist_xlim = (0.0, round(max_n + 0.1 * max_n, -(r - 1)))
+    plot_histogram(hist_data, hist_save, xlabel='Number of total Trips',
+                   ylabel='Number of Stations', xlim=hist_xlim,
+                   plot_format='png', dpi=150)
 
     cmap_name = 'cool'
     cmap = plt.cm.get_cmap(cmap_name)
@@ -386,141 +521,6 @@ def plot_bp_diff(G, ee_1, ee_2, bpp_1, bpp_2, node_color,
     plt.savefig('{}.{}'.format(save_plot, plot_format),
                 format=plot_format, bbox_inches='tight')"""
     # plt.close(fig)
-
-
-def plot_barh(data, colors, save, figsize=None, plot_format='png',
-              x_label='', title=''):
-    if figsize is None:
-        figsize = [16, 9]
-    keys = list(data.keys())
-    values = list(data.values())
-
-    fig, ax = plt.subplots(dpi=150, figsize=figsize)
-    y_pos = np.arange(len(keys))
-    for idx, key in enumerate(keys):
-        color = to_rgba(colors[key])
-        ax.barh(y_pos[idx], values[idx], color=color, align='center')
-        x = values[idx] / 2
-        y = y_pos[idx]
-        r, g, b, _ = color
-        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
-        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
-                color=text_color, fontsize=16)
-
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(keys)
-    ax.invert_yaxis()
-    ax.xaxis.set_minor_locator(AutoMinorLocator())
-    ax.set_xlabel(x_label)
-    ax.set_title(title)
-
-    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
-                bbox_inches='tight')
-
-
-def plot_barh_stacked(data, stacks, colors, save, figsize=None,
-                      plot_format='png', title=''):
-    if figsize is None:
-        figsize = [16, 9]
-
-    labels = list(data.keys())
-    values = np.array(list(data.values()))
-    values_cum = values.cumsum(axis=1)
-    colors = [to_rgba(c) for c in colors]
-
-    fig, ax = plt.subplots(dpi=150, figsize=figsize)
-    ax.invert_yaxis()
-    ax.xaxis.set_visible(False)
-    ax.set_xlim(0, max(np.sum(values, axis=1)))
-
-    for i, (colname, color) in enumerate(zip(stacks, colors)):
-        widths = values[:, i]
-        starts = values_cum[:, i] - widths
-        ax.barh(labels, widths, left=starts, height=0.5, label=colname,
-                color=color)
-        xcenters = starts + widths / 2
-
-        r, g, b, _ = color
-        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
-        for y, (x, c) in enumerate(zip(xcenters, widths)):
-            if c != 0.0:
-                ax.text(x, y, '{:3.2f}'.format(c), ha='center', va='center',
-                        color=text_color)
-    ax.legend(ncol=len(stacks), bbox_to_anchor=(0, 1), loc='lower left',
-              fontsize='small')
-    ax.set_title(title)
-    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
-                bbox_inches='tight')
-
-
-def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
-              title='', ymin=-0.1, ymax=0.7, xticks=True):
-    if figsize is None:
-        figsize = [10, 10]
-    keys = list(data.keys())
-    values = list(data.values())
-
-    fig, ax = plt.subplots(dpi=150, figsize=figsize)
-    ax.set_ylim(ymin, ymax)
-    x_pos = np.arange(len(keys))
-    for idx, key in enumerate(keys):
-        color = to_rgba(colors[key])
-        ax.bar(x_pos[idx], values[idx], color=color, align='center')
-        y = values[idx] / 2
-        x = x_pos[idx]
-        r, g, b, _ = color
-        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
-        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
-                color=text_color)
-    if xticks:
-        ax.set_xticks(x_pos)
-        ax.set_xticklabels(keys)
-    ax.yaxis.set_minor_locator(AutoMinorLocator())
-    ax.set_ylabel(y_label)
-    ax.set_xlabel(' ', fontsize=12)
-    ax.set_title(title)
-
-    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
-                bbox_inches='tight')
-
-
-def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
-                      width=0.8, figsize=None, dpi=150, plot_format='png'):
-    if figsize is None:
-        figsize = [10, 12]
-
-    stacks = list(data.keys())
-    values = list(data.values())
-    x_pos = np.arange((len(labels)))
-
-    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
-    ax.set_ylim(0.0, 1.0)
-    bottom = np.zeros(len(values[0]))
-    for idx in range(len(stacks)):
-        ax.bar(x_pos, values[idx], width, label=stacks[idx],
-               bottom=bottom, color=colors[stacks[idx]])
-        for v_idx, v in enumerate(values[idx]):
-            if v > 0.05:
-                color = to_rgba(colors[stacks[idx]])
-                y = bottom[v_idx] + v / 2
-                x = x_pos[v_idx]
-                r, g, b, _ = color
-                text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
-                ax.text(x, y, '{:3.2f}'.format(v), ha='center',
-                        va='center', color=text_color, fontsize=16)
-        bottom = [sum(x) for x in zip(bottom, values[idx])]
-        print(stacks[idx], values[idx])
-
-    ax.set_ylabel(ylabel, fontsize=24)
-    ax.yaxis.set_minor_locator(AutoMinorLocator())
-    ax.set_xticks(x_pos)
-    ax.set_xticklabels(labels)
-    ax.tick_params(axis='y', labelsize=16)
-    ax.tick_params(axis='x', labelsize=16)
-    ax.set_title(title, fontsize=24)
-
-    plt.savefig(save+'.{}'.format(plot_format), format=plot_format,
-                bbox_inches='tight')
 
 
 def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
@@ -877,7 +877,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
         plot_bp_evo(save=save, G=nxG_plot, edited_edges=edited_edges_nx,
                     bike_path_perc=bike_path_perc, cut=cut, ps=blp_idx,
                     node_size=ns, rev=rev, minmode=minmode,
-                    plot_folder=plot_folder, plot_format=plot_format)
+                    plot_folder=plot_folder, plot_format='png')
 
     # plt.show()
     plt.close('all')
@@ -1048,10 +1048,10 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
 
     fig1.savefig(plot_folder + '{}_1.{}'.format(save, plot_format),
                  format=plot_format, bbox_inches='tight')
-    """fig2.savefig(plot_folder + '{}_2.{}'.format(save, plot_format),
+    fig2.savefig(plot_folder + '{}_2.{}'.format(save, plot_format),
                  format=plot_format, bbox_inches='tight')
     fig3.savefig(plot_folder + '{}_3.{}'.format(save, plot_format),
-                 format=plot_format, bbox_inches='tight')"""
+                 format=plot_format, bbox_inches='tight')
     fig4.savefig(plot_folder + '{}_4.{}'.format(save, plot_format),
                  format=plot_format, bbox_inches='tight')
 
@@ -1064,7 +1064,7 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
               comp_modes=False,  bike_paths=None, plot_evo=False,
               evo_for=None,  plot_format='png'):
     if evo_for is None:
-        evo_for = [(False, 1)]
+        evo_for = [(False, 1), (False, 3)]
 
     hf_comp = h5py.File(comp_folder+'comp_{}.hdf5'.format(save), 'w')
     hf_comp.attrs['city'] = city

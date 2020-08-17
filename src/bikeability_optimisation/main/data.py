@@ -1,5 +1,8 @@
+import h5py
 from bikeability_optimisation.helper.data_helper import *
+from bikeability_optimisation.main.plot import plot_matrix, plot_meta_graph
 from pathlib import Path
+from pyproj import Proj, transform
 
 
 def prep_city(city_name, save_name, nominatim_name, nominatim_result,
@@ -132,11 +135,14 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
 
 
 def analyse_city(save, city, input_folder, output_folder, plot_folder,
-                 communities=False, requests=None, requests_result=None,
-                 scale='log'):
+                 cluster=False, bg_map=False, bg_polygon=None, bg_nominatim=1,
+                 communities=False,  comm_requests=None,
+                 comm_requests_result=None, plot_format='png'):
     plt.rcdefaults()
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
+
+    hf_comp = h5py.File(output_folder+'{}_analysis.hdf5'.format(save), 'w')
 
     trips = np.load(input_folder + '{}_demand.npy'.format(save),
                     allow_pickle=True)[0]
@@ -149,34 +155,55 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
         stations.append(k[1])
     stations = list(set(stations))
 
-    df1 = data_to_matrix(stations, trips, scale=scale)
+    if bg_map:
+        polygon = get_polygon_from_json(bg_polygon)
+    else:
+        polygon = None
+    stations_pos = {}
+    for s in stations:
+        lon = G_city.nodes[s]['x']
+        lat = G_city.nodes[s]['y']
+        inProj = Proj('epsg:4326')
+        outProj = Proj('epsg:3857')
+        stations_pos[s] = transform(inProj, outProj, lat, lon)
+
+    df1 = data_to_matrix(stations, trips)
+    print('Plotting OD Matrix.')
     plot_matrix(city, df1, plot_folder, save, cmap=None, figsize=None,
-                dpi=150, plot_format='png', scale=scale)
+                dpi=150, plot_format=plot_format)
 
+    print('Plotting meta graph.')
     G = matrix_to_graph(df1)
-    plot_graph(city, G, node_cmap=None, edge_cmap=None, save=save,
-               plot_folder=plot_folder, plot_format='png', scale=scale)
+    degree = plot_meta_graph(city, G, save=save, bg_polygon=polygon,
+                             bg_nominatim=bg_nominatim,
+                             plot_folder=plot_folder,  plot_format=plot_format,
+                             node_pos=stations_pos)
 
-    stations_new = sort_clustering(G)
-    df2 = data_to_matrix(stations_new, trips, scale=scale)
-    plot_matrix(city, df2, plot_folder, save=save+'-cluster', cmap=None,
-                figsize=None, dpi=150, plot_format='png', scale=scale)
+    if cluster:
+        print('Calculating clustering.')
+        stations_new = sort_clustering(G)
+        df2 = data_to_matrix(stations_new, trips)
+        print('Plotting clustered OD Matrix.')
+        plot_matrix(city, df2, plot_folder, save=save+'_cluster',
+                    figsize=None, dpi=150, plot_format=plot_format)
 
-    H = matrix_to_graph(df2)
-    plot_graph(city, G, node_cmap=None, edge_cmap=None, save=save+'-cluster',
-               plot_folder=plot_folder, plot_format='png', scale=scale)
+        H = matrix_to_graph(df2)
+        print('Plotting clustered meta graph.')
+        plot_meta_graph(city, H, save=save+'_cluster', plot_folder=plot_folder,
+                        plot_format=plot_format)
 
-    df3 = nx.to_pandas_edgelist(H)
-    rename_columns = {'source': 'NODE_ID1', 'target': 'NODE_ID2',
-                      'trips': 'WEIGHT'}
-    df3.rename(columns=rename_columns, inplace=True)
-    path = output_folder + '{}_trips.csv'.format(save)
-    df3.to_csv(path, index=False)
+        df3 = nx.to_pandas_edgelist(H)
+        rename_columns = {'source': 'NODE_ID1', 'target': 'NODE_ID2',
+                          'trips': 'WEIGHT'}
+        df3.rename(columns=rename_columns, inplace=True)
+        path = output_folder + '{}_trips.csv'.format(save)
+        df3.to_csv(path, index=False)
 
     if communities:
         oxG = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
                               node_type=int)
-        df_com_stat, df_stat_com = get_communities(requests, requests_result,
+        df_com_stat, df_stat_com = get_communities(comm_requests,
+                                                   comm_requests_result,
                                                    stations, oxG)
         df_com_stat.to_csv(output_folder + '{}_com_stat.csv'.format(save),
                            index=True)
@@ -184,4 +211,8 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
                            index=True)
 
     avg_trip_len = calc_average_trip_len(G_city, trips, penalties=True)
-    return avg_trip_len
+
+    hf_comp['station degree'] = degree
+    hf_comp['trips'] = [v for k, v in trips]
+    hf_comp['avg trip length'] = avg_trip_len
+    hf_comp.close()

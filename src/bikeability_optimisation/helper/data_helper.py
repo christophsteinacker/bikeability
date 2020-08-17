@@ -8,14 +8,11 @@ import osmnx as ox
 import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.colors import rgb2hex, to_rgba
-from matplotlib.ticker import AutoMinorLocator
+from matplotlib.colors import rgb2hex
 from math import ceil, cos, asin, sqrt, pi
 from shapely.geometry import Point, Polygon
 from bikeability_optimisation.helper.algorithm_helper import get_street_type
-from bikeability_optimisation.helper.plot_helper import calc_current_state, \
-    magnitude
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from bikeability_optimisation.helper.algorithm_helper import calc_current_state
 
 
 def read_csv(path, delim=','):
@@ -506,40 +503,15 @@ def save_map(G, save_path, save_name):
     ox.save_graphml(G, filepath=save_path+'{}.graphml'.format(save_name))
 
 
-def data_to_matrix(stations, trips, scale='log'):
+def data_to_matrix(stations, trips):
     df = pd.DataFrame(stations, columns=['station'])
     for station in stations:
         df[station] = [np.nan for x in range(len(stations))]
     df.set_index('station', inplace=True)
-    if scale == 'log':
-        for k, v in trips.items():
-            if not k[0] == k[1]:
-                df[k[0]][k[1]] = np.log(v)
-    else:
-        for k, v in trips.items():
-            if not k[0] == k[1]:
-                df[k[0]][k[1]] = v
+    for k, v in trips.items():
+        if not k[0] == k[1]:
+            df[k[0]][k[1]] = v
     return df
-
-
-def plot_matrix(city, df, plot_folder, save, cmap=None, figsize=None,
-                dpi=300, plot_format='png', scale='log'):
-    if cmap is None:
-        cmap = plt.cm.get_cmap('viridis')
-    if figsize is None:
-        figsize = [10, 10]
-
-    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-    ax.pcolor(df, cmap=cmap)
-    ax.tick_params(axis='x', which='both', bottom=False, top=False,
-                   labelbottom=False)
-    ax.tick_params(axis='y', which='both', left=False, right=False,
-                   labelleft=False)
-
-    fig.suptitle('Trips in {}'.format(city), fontsize='x-large')
-    plt.savefig(plot_folder+'{0:s}-matrix-{1:s}.{2:s}'
-                .format(save, scale, plot_format), format=plot_format,
-                 bbox_inches='tight')
 
 
 def matrix_to_graph(df, rename_columns=None):
@@ -549,50 +521,6 @@ def matrix_to_graph(df, rename_columns=None):
     df = df.stack().reset_index()
     df = df.rename(columns=rename_columns)
     return nx.from_pandas_edgelist(df=df, edge_attr='trips')
-
-
-def plot_graph(city, G, plot_folder, node_cmap=None, edge_cmap=None, save=None,
-               plot_format='png', scale='log'):
-    if node_cmap is None:
-        node_cmap = plt.cm.get_cmap('viridis')
-    if edge_cmap is None:
-        edge_cmap = plt.cm.get_cmap('PuRd')
-    degree = [x[1] for x in nx.degree(G)]
-    min_degree = min(degree)
-    max_degree = max(degree)
-
-
-    trips = [G[u][v]['trips'] for u, v in G.edges()]
-    max_trips = max(trips)
-    min_trips = min(trips)
-
-    fig, ax = plt.subplots(figsize=[10, 10], dpi=150)
-    pos = nx.kamada_kawai_layout(G)
-
-    nx.draw_networkx(G, pos=pos, ax=ax, with_labels=False,
-                     node_color=degree, cmap=node_cmap,
-                     vmin=min_degree, vmax=max_degree, node_size=100,
-                     edge_color=trips, edge_cmap=edge_cmap,
-                     edge_vmin=min_trips, edge_vmax=max_trips)
-    sm = plt.cm.ScalarMappable(cmap=plt.cm.get_cmap('viridis'),
-                               norm=plt.Normalize(vmin=min_degree,
-                                                  vmax=max_degree))
-    sm._A = []
-    cbaxes = fig.add_axes([0.05, 0.1, 0.03, 0.8])
-
-    cbar = fig.colorbar(sm, orientation='vertical', cax=cbaxes,
-                        ticks=[min_degree, round(max_degree / 2), max_degree])
-    cbar.ax.set_yticklabels([min_degree, round(max_degree / 2), max_degree])
-
-    cbar.ax.tick_params(axis='x', labelsize=16)
-    cbar.ax.yaxis.set_ticks_position('left')
-    cbar.ax.yaxis.set_label_position('left')
-    cbar.ax.set_ylabel('Total Degree of a Station', fontsize=18)
-
-    # fig.suptitle('Trips in {}'.format(city), fontsize='x-large')
-    plt.savefig(plot_folder+'{0:s}-graph-{1:s}.{2:s}'
-                .format(save, scale, plot_format), format=plot_format,
-                bbox_inches='tight')
 
 
 def sort_clustering(G):
@@ -645,34 +573,3 @@ def calc_average_trip_len(nxG, trip_nbrs, penalties=True):
     for trip, trip_info in trips_dict.items():
         length += [trip_info['length felt']] * trip_info['nbr of trips']
     return np.average(length)
-
-
-def plot_average_trip_length(average_trip_len, colors, plot_folder,
-                             plot_format='png', figsize=None, dpi=150):
-    if figsize is None:
-        figsize = [10, 10]
-
-    cities = list(average_trip_len.keys())
-    values = list(average_trip_len.values())
-
-    fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
-    y_pos = np.arange(len(cities))
-    for idx, city in enumerate(cities):
-        color = to_rgba(colors[city])
-        ax.barh(y_pos[idx], values[idx], color=color, align='center')
-        x = values[idx] / 2
-        y = y_pos[idx]
-        r, g, b, _ = color
-        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
-        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
-                color=text_color)
-
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(cities)
-    ax.invert_yaxis()
-    ax.xaxis.set_minor_locator(AutoMinorLocator())
-    ax.set_xlabel('average trip length')
-    ax.set_title('Average trip length in the city')
-
-    plt.savefig(plot_folder + 'average-trip-len.{}'.format(plot_format),
-                format=plot_format, bbox_inches='tight')

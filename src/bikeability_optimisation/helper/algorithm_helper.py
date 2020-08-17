@@ -273,6 +273,19 @@ def get_minimal_loaded_edge(edge_dict, trips_dict, minmode=0, rev=False):
             edges_trip_length[edge] = np.nan_to_num(np.average(length))
         edges_load = {edge: edge_info['load'] * edges_trip_length[edge]
                       for edge, edge_info in edges.items()}
+    elif minmode == 3:
+        # load weighted by penalty
+        if rev:
+            edges_load = {edge: (edge_info['load'] *
+                                 (1 / edge_info['penalty']))
+                                - edge_info['real length']
+                          for edge, edge_info in edges.items()}
+        else:
+            edges_load = {edge: (edge_info['load'] * edge_info['penalty']) -
+                                edge_info['real length']
+                          for edge, edge_info in edges.items()}
+        if min(edges_load.values()) > 0:
+            edges_load = {}
     else:
         print('Minmode has to be chosen. Aborting.')
         edges_load = {}
@@ -686,3 +699,70 @@ def save_data(path, data, logfile, message):
     log_to_file(logfile, message, stamptime=time.localtime(), stamp=True,
                 difference=False)
     np.save(path, data)
+
+
+def calc_current_state(nxG, trip_nbrs, bike_paths=None):
+    """
+    Calculates the data for the current bike path situation. If no bike
+    paths are provided all primary and secondary roads will be assigned with a
+    bike path.
+    :param nxG: Street graph to calculate in.
+    :param trip_nbrs: Number of trips as used for the main algorithm.
+    :param bike_paths: List of edges which hav a bike path.
+    :return: Data structured as from the main algorithm.
+    :rtype: np.array
+    """
+    if bike_paths is None:
+        stypes = ['primary', 'secondary']
+        bike_paths = [e for e in nxG.edges() if
+                      get_street_type_cleaned(nxG, e, multi=False) in stypes]
+    # All street types in network
+    street_types = get_all_street_types_cleaned(nxG, multi=False)
+    # Add bike paths
+    len_on_type = {t: 0 for t in street_types}
+    len_on_type['primary'] = 0
+    len_on_type['bike path'] = 0
+
+    # Set penalties for different street types
+    penalties = {'primary': 7, 'secondary': 2.4, 'tertiary': 1.4,
+                 'residential': 1.1}
+
+    # Set cost for different street types
+    street_cost = {'primary': 1, 'secondary': 1, 'tertiary': 1,
+                   'residential': 1}
+
+    trips_dict = {t_id: {'nbr of trips': nbr_of_trips, 'nodes': [],
+                         'edges': [], 'length real': 0, 'length felt': 0,
+                         'real length on types': len_on_type,
+                         'felt length on types': len_on_type,
+                         'on street': False}
+                  for t_id, nbr_of_trips in trip_nbrs.items()}
+    edge_dict = {edge: {'felt length': get_street_length(nxG, edge),
+                        'real length': get_street_length(nxG, edge),
+                        'street type': get_street_type_cleaned(nxG, edge),
+                        'penalty': penalties[get_street_type_cleaned(nxG, edge)],
+                        'speed limit': get_speed_limit(nxG, edge),
+                        'bike path': True, 'load': 0, 'trips': []}
+                 for edge in nxG.edges()}
+
+    for edge, edge_info in edge_dict.items():
+        if edge not in bike_paths:
+            edge_info['bike path'] = False
+            edge_info['felt length'] *= edge_info['penalty']
+            nxG[edge[0]][edge[1]]['length'] *= edge_info['penalty']
+
+    calc_trips(nxG, edge_dict, trips_dict, netwx=True)
+
+    # Initialise lists
+    total_cost = get_total_cost(bike_paths, edge_dict, street_cost)
+    bike_path_perc = bike_path_percentage(edge_dict)
+    total_real_distance_traveled = total_len_on_types(trips_dict, 'real')
+    total_felt_distance_traveled = total_len_on_types(trips_dict, 'felt')
+    nbr_on_street = nbr_of_trips_on_street(trips_dict)
+
+    # Save data of this run to data array
+    data = np.array([bike_paths, total_cost, bike_path_perc,
+                     total_real_distance_traveled,
+                     total_felt_distance_traveled, nbr_on_street, edge_dict,
+                     trips_dict], dtype=object)
+    return data
