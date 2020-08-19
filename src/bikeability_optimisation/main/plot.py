@@ -1,5 +1,6 @@
 from math import ceil
 import json
+import geopandas
 # import matplotlib.patches as mpatches
 from matplotlib.colors import rgb2hex, Normalize, LogNorm
 from matplotlib.legend_handler import HandlerTuple
@@ -8,94 +9,183 @@ from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
 from pathlib import Path
 import matplotlib.lines as mlines
 import osmnx as ox
+from pyproj import Proj, transform
+from geopy.distance import distance
 from scipy import stats
 from collections import Counter
 from bikeability_optimisation.helper.plot_helper import *
 from bikeability_optimisation.helper.data_helper import \
-    get_polygon_from_json, get_polygons_from_json
+    get_polygon_from_json, get_polygons_from_json, get_bbox_from_polygon
 from bikeability_optimisation.helper.algorithm_helper import calc_current_state
 
 
-def plot_meta_graph(city, G, plot_folder, node_cmap=None, edge_cmap=None,
-                    save=None, node_pos=None, bg_polygon=None, bg_nominatim=1,
-                    plot_format='png'):
+def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
+                  node_cmap=None, node_cmin=None, node_cmax=None,
+                  node_cmap_label='',
+                  edge_width=1.0, edge_color='k', edge_cmap=None,
+                  edge_cmin=None, edge_cmax=None, edge_cmap_label='',
+                  bg_area=None, overlay_poly=None,  scalebar=False,
+                  figsize=None, dpi=150, folder='', filename='',
+                  plot_format='png'):
+    """
+
+    :param G:
+    :param node_pos:
+    :param node_size:
+    :param node_color:
+    :type node_color: str or list
+    :param node_cmap:
+    :param node_cmin:
+    :param node_cmax:
+    :param node_cmap_label:
+    :param edge_width:
+    :param edge_color:
+    :type edge_color: str or list
+    :param edge_cmap:
+    :param edge_cmin:
+    :param edge_cmax:
+    :param edge_cmap_label:
+    :param bg_area:
+    :param overlay_poly:
+    :param figsize:
+    :param dpi:
+    :param folder:
+    :param filename:
+    :param plot_format:
+    :return:
+    """
+    if figsize is None:
+        figsize = [10, 10]
+    plt.rcdefaults()
+
+    if scalebar:
+        fig = plt.figure(figsize=figsize, dpi=dpi)
+        ax = fig.add_subplot(111, projection=ccrs.epsg(3857))
+    else:
+        fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+    if bg_area is not None:
+        bg_bbox = get_polygon_from_bbox(get_bbox_from_polygon(bg_area))
+        bg = geopandas.GeoDataFrame(crs='epsg:4326', geometry=[bg_bbox])
+        bg = bg.to_crs('epsg:3857')
+        bg.plot(alpha=0, ax=ax)
+        ctx.add_basemap(ax)  # , url=ctx.providers.Stamen.TonerLite
+        if scalebar:
+            scale_bar(ax, (0.05, 0.05), 5)
+    if overlay_poly is not None:
+        overlay = geopandas.GeoDataFrame(crs='epsg:4326',
+                                         geometry=[overlay_poly])
+        overlay = overlay.to_crs('epsg:3857')
+        overlay.plot(ax=ax, linewidth=5, alpha=0.2)
+
+    nx.draw_networkx(G, pos=node_pos, ax=ax, with_labels=False,
+                     node_size=node_size, node_color=node_color,
+                     cmap=node_cmap, vmin=node_cmin, vmax=node_cmax,
+                     width=edge_width, edge_color=edge_color,
+                     edge_cmap=edge_cmap,  edge_vmin=edge_cmin,
+                     edge_vmax=edge_cmax)
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+    ax.axis('off')
+    if (node_cmap is not None) and (edge_cmap is None):
+        sm = plt.cm.ScalarMappable(cmap=node_cmap, norm=Normalize(
+                vmin=node_cmin, vmax=node_cmax))
+        divider = make_axes_locatable(ax)
+        cbaxes = divider.append_axes('bottom', size="5%", pad=0.05)
+        cbar = fig.colorbar(sm, orientation='horizontal', cax=cbaxes)
+        cbar.ax.tick_params(axis='x', labelsize=16)
+        cbar.ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        cbar.ax.set_xlabel(node_cmap_label, fontsize=18)
+    if (node_cmap is None) and (edge_cmap is not None):
+        sm = plt.cm.ScalarMappable(cmap=edge_cmap,
+                                     norm=Normalize(vmin=edge_cmin,
+                                                    vmax=edge_cmax))
+        divider = make_axes_locatable(ax)
+        cbaxes = divider.append_axes('bottom', size="5%", pad=0.05)
+        cbar = fig.colorbar(sm, orientation='horizontal', cax=cbaxes)
+        cbar.ax.tick_params(axis='x', labelsize=16)
+        cbar.ax.set_xlabel(edge_cmap_label, fontsize=18)
+    if (node_cmap is not None) and (edge_cmap is not None):
+        sm_1 = plt.cm.ScalarMappable(cmap=node_cmap,
+                                     norm=Normalize(vmin=node_cmin,
+                                                    vmax=node_cmax))
+        divider_1 = make_axes_locatable(ax)
+        cbaxes_1 = divider_1.append_axes('left', size="5%", pad=0.05)
+        cbar_1 = fig.colorbar(sm_1, orientation='vertical', cax=cbaxes_1)
+        cbar_1.ax.tick_params(axis='y', labelsize=16)
+        cbar_1.ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        cbar_1.ax.set_ylabel(node_cmap_label, fontsize=18)
+        sm_2 = plt.cm.ScalarMappable(cmap=edge_cmap,
+                                     norm=Normalize(vmin=edge_cmin,
+                                                    vmax=edge_cmax))
+        divider_2 = make_axes_locatable(ax)
+        cbaxes_2 = divider_2.append_axes('right', size="5%", pad=0.05)
+        cbar_2 = fig.colorbar(sm_2, orientation='vertical', cax=cbaxes_2)
+        cbar_2.ax.tick_params(axis='y', labelsize=16)
+        cbar_2.ax.yaxis.set_ticks_position('right')
+        cbar_2.ax.yaxis.set_label_position('right')
+        cbar_2.ax.set_ylabel(edge_cmap_label, fontsize=18)
+
+    fig.savefig('{}{}.{}'.format(folder, filename, plot_format),
+                format=plot_format, bbox_inches='tight')
+
+
+def plot_station_degree(G, degree=None, indegree=None, outdegree=None,
+                        node_cmap=None, node_pos=None, bg_area=None,
+                        save='', plot_folder='', plot_format='png', dpi=150,
+                        figsize=None):
     if node_cmap is None:
-        node_cmap = plt.cm.get_cmap('viridis_r')
-    if edge_cmap is None:
-        edge_cmap = plt.cm.get_cmap('Greys')
+        node_cmap = plt.cm.get_cmap('plasma_r')
     if node_pos is None:
         node_pos = nx.kamada_kawai_layout(G)
+    if figsize is None:
+        figsize = [10, 10]
+    if degree is None:
+        degree = [d for n, d in nx.degree(G)]
 
-    degree = [x[1] for x in nx.degree(G)]
     degree_log = [np.log10(x) for x in degree]
     min_degree = min(degree)
     min_degree_log = np.log10(min_degree)
     max_degree = max(degree)
     max_degree_log = np.log10(max_degree)
 
-    trips = [G[u][v]['trips'] for u, v in G.edges()]
-    trips_log = [np.log10(x) for x in trips]
-    max_trips = max(trips)
-    max_trips_log = np.log10(max_trips)
-    if round(max_trips_log) - max_trips_log < 0.05:
-        norm_trips_max = 10**round(max_trips_log)
+    plot_nx_graph(G, node_pos=node_pos, node_size=100, node_color=degree,
+                  node_cmap=node_cmap, node_cmin=min_degree,
+                  node_cmax=max_degree, node_cmap_label='station degree',
+                  edge_width=0, bg_area=bg_area, figsize=figsize, dpi=dpi,
+                  folder=plot_folder, filename=save+'_degree_graph',
+                  plot_format=plot_format)
+
+    if min(degree) <= 50:
+        hist_xlim = (0, max(degree) + 1)
     else:
-        norm_trips_max = max_trips
-    min_trips = min(trips)
-    min_trips_log = np.log10(min_trips)
-
-    fig, ax = plt.subplots(figsize=[10, 10], dpi=150)
-    if bg_polygon is not None:
-        df = ox.geocode_to_gdf(city, which_result=bg_nominatim)
-        df['geometry'] = get_polygon_from_bbox(get_bbox_from_polygon(
-                bg_polygon))
-        df = df.to_crs('epsg:3857')
-        df.plot(alpha=0, ax=ax)
-        ctx.add_basemap(ax)  # , url=ctx.providers.Stamen.TonerLite
-    nx.draw_networkx(G, pos=node_pos, ax=ax, with_labels=False,
-                     node_color=degree, cmap=node_cmap,
-                     vmin=min_degree, vmax=max_degree, node_size=100,
-                     edge_color=trips_log, edge_cmap=edge_cmap,
-                     edge_vmin=min_trips_log, edge_vmax=round(max_trips_log))
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-    ax.axis('off')
-    sm_1 = plt.cm.ScalarMappable(cmap=node_cmap,
-                                 norm=Normalize(vmin=min_degree,
-                                                vmax=max_degree))
-    sm_2 = plt.cm.ScalarMappable(cmap=edge_cmap,
-                                 norm=LogNorm(vmin=min_trips,
-                                              vmax=norm_trips_max))
-
-    sm_1._A = []
-    sm_2._A = []
-    cbaxes_1 = fig.add_axes([0.1, 0.1, 0.03, 0.8])
-    cbar_1 = fig.colorbar(sm_1, orientation='vertical', cax=cbaxes_1)
-    cbar_1.ax.tick_params(axis='x', labelsize=16)
-    cbar_1.ax.yaxis.set_ticks_position('left')
-    cbar_1.ax.yaxis.set_label_position('left')
-    cbar_1.ax.set_ylabel('Total Degree of a Station', fontsize=18)
-
-    cbaxes_2 = fig.add_axes([0.9, 0.1, 0.03, 0.8])
-    cbar_2 = fig.colorbar(sm_2, orientation='vertical', cax=cbaxes_2)
-    cbar_2.ax.tick_params(axis='x', labelsize=16)
-    cbar_2.ax.yaxis.set_ticks_position('right')
-    cbar_2.ax.yaxis.set_label_position('right')
-    cbar_2.ax.set_ylabel('Total Trips', fontsize=18)
-
-    # fig.suptitle('Trips in {}'.format(city), fontsize='x-large')
-    fig.savefig('{}{}_meta_graph.{}'.format(plot_folder, save,  plot_format),
-                format=plot_format,  bbox_inches='tight')
-    return degree
+        hist_xlim = (min(degree) - 10, max(degree) + 1)
+    bins = round((hist_xlim[1] - hist_xlim[0]) / 2)
+    plot_histogram(degree, '{}{}_degree_hist'.format(plot_folder, save),
+                   bins=bins, xlim=hist_xlim,
+                   xlabel='degree', ylabel='# of stations',
+                   plot_format=plot_format, dpi=dpi)
+    if indegree is not None:
+        plot_histogram(indegree, '{}{}_indegree_hist'
+                       .format(plot_folder, save), bins=bins, xlim=hist_xlim,
+                       xlabel='indegree', ylabel='# of stations',
+                       plot_format=plot_format, dpi=dpi)
+    if outdegree is not None:
+        plot_histogram(outdegree, '{}{}_outdegree_hist'
+                       .format(plot_folder, save), bins=bins, xlim=hist_xlim,
+                       xlabel='degree', ylabel='# of stations',
+                       plot_format=plot_format, dpi=dpi)
 
 
-def plot_stats(saves, colors, data_folder, plot_folder,
-               plot_format='png', figsize=None, dpi=150):
+def plot_stats(saves, colors, data_folder, plot_folder, plot_format='png',
+               figsize=None, dpi=150):
     plt.rcdefaults()
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
 
     degree = {}
+    indegree = {}
+    outdegree = {}
     trips = {}
+    imbalance = {}
     avg_trip_len = {}
     for city, save in saves.items():
         print(city)
@@ -104,58 +194,96 @@ def plot_stats(saves, colors, data_folder, plot_folder,
         data = h5py.File('{0:}{1:}/{1:}_analysis.hdf5'.format(data_folder,
                                                               save), 'r')
         degree[city] = data['station degree'][()]
-        if min(degree[city]) <= 50:
-            hist_xlim = (0, max(degree[city]) + 1)
-        else:
-            hist_xlim = (min(degree[city]-10), max(degree[city]) + 1)
-        bins = hist_xlim[1] - hist_xlim[0]
-        plot_histogram(degree[city], '{}{}_degree'.format(city_plot, save),
-                       bins=bins, xlim=hist_xlim,
-                       xlabel='Total Degree', ylabel='# of Stations',
-                       plot_format=plot_format, dpi=dpi)
+        indegree[city] = data['station indegree'][()]
+        outdegree[city] = data['station outdegree'][()]
+        print('Min degree {}, max degree {}'.format(min(degree[city]),
+                                                    max(degree[city])))
+
         trips[city] = data['trips'][()]
-        if min(trips[city]) <= 50:
-            hist_xlim = (0, max(trips[city]) + 1)
-        else:
-            hist_xlim = (min(trips[city]-10), max(trips[city]) + 1)
-        bins = hist_xlim[1] - hist_xlim[0]
+        total_trips = sum(trips[city])
+        unique_trips = len(set(trips[city]))
+        test = []
+        for idx, t_1 in enumerate(sorted(trips[city])):
+            test.extend([idx]*t_1)
+        xticks = {i: str(i) for i in np.arange(101, step=25)}
+        plot_histogram(test, '{}{}_trips_test'.format(city_plot, save),
+                       bins=len(set(test))+1, xlim=[0, len(set(test))],
+                       xlabel='', ylabel='# of Cylists', cumulative=True,
+                       density=True, xticks=xticks,
+                       plot_format=plot_format, dpi=dpi)
+        hist_xlim = [0, max(trips[city])]
         plot_histogram(trips[city], '{}{}_trips'.format(city_plot, save),
-                       bins=len(set(trips[city])), xlim=hist_xlim,
+                       bins=unique_trips, xlim=hist_xlim,
                        xlabel='Cyclists per Trip', ylabel='# of Trips',
                        plot_format=plot_format, dpi=dpi)
-        plot_histogram(trips[city], '{}{}_trips_cum'.format(city_plot, save),
-                       bins=len(set(trips[city])), xlim=hist_xlim,
-                       cumulative=True,
-                       xlabel='Cyclists per Trip', ylabel='# of Trips',
+        print('Min cyclists {}, max cyclists {}'.format(min(trips[city]),
+                                                        max(trips[city])))
+
+        imbalance[city] = data['imbalance'][()]
+        hist_xlim = [-0.05, 1.05]
+        bins = round(len(set(imbalance[city])) / 4)
+        plot_histogram(imbalance[city],
+                       '{}{}_imbalance'.format(city_plot, save),
+                       bins=bins, xlim=hist_xlim,
+                       xlabel='Imbalance of Trip', ylabel='# of Trips',
                        plot_format=plot_format, dpi=dpi)
+        counter = Counter(imbalance[city])
+        imb_sum = sum(counter.values())
+        imb_0 = sum([v for k, v in counter.items() if k <= 0.1]) / imb_sum
+        imb_1 = sum([v for k, v in counter.items() if k >= 0.9]) / imb_sum
+        print('Trips with low imb: {:3.2f}, trips with high imb: {:3.2f}'
+              .format(imb_0, imb_1))
+
         avg_trip_len[city] = data['avg trip length'][()]
 
     deg_median = {}
     deg_mean = {}
     deg_std = {}
+    deg_var = {}
     trip_median = {}
     trip_mean = {}
     trip_std = {}
+    trip_var = {}
+    trip_ttp = {}
+    trip_ltp = {}
     for k, v in degree.items():
         deg_mean[k] = np.mean(v)
         deg_median[k] = np.median(v)
         deg_std[k] = stats.tstd(v)
+        deg_var[k] = stats.variation(v)
     plot_barh(deg_mean, colors, plot_folder+'deg_mean',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
     plot_barh(deg_median, colors, plot_folder+'deg_median',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
     plot_barh(deg_std, colors, plot_folder+'deg_std',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(deg_var, colors, plot_folder + 'deg_var',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
 
     for k, v in trips.items():
         trip_median[k] = np.mean(v)
         trip_mean[k] = np.median(v)
         trip_std[k] = stats.tstd(v)
+        trip_var[k] = stats.variation(v)
+        trips_s = sorted(v)
+        print('10 most used trips: {}'.format(trips_s[-10:]))
+        trip_ttp[k] = sum(trips_s[round(0.90*len(v)):]) / sum(v)
+        trip_ltp[k] = sum(trips_s[:round(0.50*len(v))]) / sum(v)
     plot_barh(trip_median, colors, plot_folder+'trip_mean',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
     plot_barh(trip_mean, colors, plot_folder+'trip_median',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
     plot_barh(trip_std, colors, plot_folder+'trip_std',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(trip_var, colors, plot_folder + 'trip_var',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(trip_var, colors, plot_folder + 'trip_var',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(trip_var, colors, plot_folder + 'trip_var',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(trip_ttp, colors, plot_folder + 'trip_ttp',
+              plot_format=plot_format, dpi=dpi, figsize=figsize)
+    plot_barh(trip_ltp, colors, plot_folder + 'trip_ltp',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
 
     plot_barh(avg_trip_len, colors, plot_folder+'avg_trip_len',
@@ -170,6 +298,22 @@ def plot_edge_types(G, ns, save, plot_folder, plot_format='png',
     save_path = '{}{}_networt_st.{}'.format(plot_folder, save, plot_format)
     plot_edges(G, ec, node_size=ns, save_path=save_path,
                plot_format=plot_format, figsize=figsize, dpi=dpi)
+
+
+def plot_used_area(g, area, stations, stations_color='C0', station_size=100,
+                   figsize=None, dpi=150,  folder='', filename='',
+                   plot_format='png'):
+    h = nx.Graph(nx.induced_subgraph(g, stations))
+    h.remove_edges_from(list(h.edges))
+
+    inProj = Proj('epsg:4326')
+    outProj = Proj('epsg:3857')
+    node_pos = {n: transform(inProj, outProj, d['y'], d['x']) for n, d in
+                h.nodes(data=True)}
+    plot_nx_graph(h, node_pos=node_pos, node_size=station_size,
+                  node_color=stations_color, bg_area=area, scalebar=True,
+                  overlay_poly=area,  figsize=figsize, dpi=dpi, folder=folder,
+                  filename=filename,  plot_format=plot_format)
 
 
 def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
@@ -212,7 +356,7 @@ def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
     plt.close(fig)
 
 
-def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
+def plot_used_nodes(save, G, trip_nbrs, stations, plot_folder,
                     figsize=(12, 12), dpi=150, plot_format='png'):
     print('Plotting used nodes.')
 
@@ -257,13 +401,15 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
     color_n = [cmap[v] for k, v in n_rel.items()]
 
     fig2, ax2 = plt.subplots(dpi=dpi, figsize=figsize)
-    ox.plot_graph(G, ax=ax2, bgcolor='#ffffff',
-                  edge_linewidth=1.5, node_color=color_n,
-                  node_size=ns, node_zorder=3, show=False, close=False)
+    ox.plot_graph(G, ax=ax2, bgcolor='#ffffff', edge_linewidth=1.5,
+                  node_color=color_n, node_size=ns, node_zorder=3,
+                  show=False, close=False)
     sm = plt.cm.ScalarMappable(cmap=plt.cm.get_cmap(cmap_name),
                                norm=plt.Normalize(vmin=0, vmax=max_n))
-    sm._A = []
+
     cbaxes = fig2.add_axes([0.1, 0.05, 0.8, 0.03])
+    # divider = make_axes_locatable(ax2)
+    # cbaxes = divider.append_axes('bottom', size="5%", pad=0.05)
 
     if min_n <= 0.1 * max_n:
         r = magnitude(max_n)
@@ -281,17 +427,16 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
                                  round(max_n, -(max_r-1))])
 
     cbar.ax.tick_params(axis='x', labelsize=16)
-    cbar.ax.set_xlabel('Total Number of Trips', fontsize=18)
+    cbar.ax.set_xlabel('total number of trips', fontsize=18)
 
     #fig2.suptitle('{}, Stations: {}, Trips: {}'
     #              .format(city.capitalize(), station_count, trip_count),
     #              fontsize=24)
-    fig2.savefig(plot_folder + '{:}_stations_used.{}'
+    fig2.savefig(plot_folder + '{}_stations_used.{}'
                  .format(save, plot_format), format=plot_format,
                  bbox_inches='tight')
 
     plt.close('all')
-    # plt.show()
 
 
 def plot_edges(G, edge_color, node_size, save_path, plot_format='png',
@@ -861,10 +1006,6 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
               figsize=[10, 11], y_label='',
               title='Change compared to primary and secondary only')
 
-
-    plot_used_nodes(city=city, save=save, G=nxG_plot, trip_nbrs=trip_nbrs,
-                    stations=stations, plot_folder=plot_folder,
-                    plot_format=plot_format)
     for bp_mode in ['algo', 'p+s', 'diff']:
         plot_bp_comparison(city=city, save=save, G=nxG_plot,
                            ee_algo=edited_edges_nx, ee_cs=bike_paths_now,
@@ -1115,6 +1256,7 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
     plot_edge_types(nxG_plot, ns, save, plot_folder)
 
     polygon = get_polygon_from_json('{}{}.json'.format(polygon_folder, save))
+
     remove_area = None
     if correct_area:
         correct_area_path = '{}{}_delete.json'.format(polygon_folder, save)
@@ -1128,6 +1270,9 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
     print('Area {}'.format(round(area, 1)))
     sa_ratio = len(stations) / area
     hf_comp['ratio stations area'] = sa_ratio
+
+    plot_used_nodes(save, nxG_plot, trip_nbrs, stations, plot_folder,
+                    dpi=150, plot_format=plot_format)
 
     data_now = calc_current_state(nxG_calc, trip_nbrs, bike_paths)
     # modes = ['{:d}{:}'.format(m[0], m[1]) for m in modes]

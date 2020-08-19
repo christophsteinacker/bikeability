@@ -514,13 +514,37 @@ def data_to_matrix(stations, trips):
     return df
 
 
-def matrix_to_graph(df, rename_columns=None):
+def matrix_to_graph(df, rename_columns=None, data=True):
     if rename_columns is None:
         rename_columns = {'station': 'source', 'level_1': 'target', 0: 'trips'}
     df.values[[np.arange(len(df))] * 2] = np.nan
     df = df.stack().reset_index()
     df = df.rename(columns=rename_columns)
-    return nx.from_pandas_edgelist(df=df, edge_attr='trips')
+    g = nx.from_pandas_edgelist(df=df, edge_attr='trips',
+                                create_using=nx.MultiDiGraph)
+    edge_list = list(g.edges())
+    for u, v, d in g.edges(data='trips'):
+        if (v, u) in edge_list:
+            g[v][u][0]['total trips'] = d + g[v][u][0]['trips']
+            g[v][u][0]['imbalance'] = abs(d - g[v][u][0]['trips']) / \
+                                      max(d, g[v][u][0]['trips'])
+        else:
+            g[u][v][0]['total trips'] = d
+            g[u][v][0]['imbalance'] = 1
+    if data:
+        indegree = [d for n, d in g.in_degree()]
+        outdegree = [d for n, d in g.out_degree()]
+        g = nx.Graph(g)
+        degree = [d for n, d in nx.degree(g)]
+        imbalance = [d for u, v, d in g.edges(data='imbalance')]
+        for u, v, d in g.edges(data='total trips'):
+            g[u][v]['trips'] = d
+        return g, degree, indegree, outdegree, imbalance
+    else:
+        g = nx.Graph(g)
+        for u, v, d in g.edges(data='total trips'):
+            g[u][v]['trips'] = d
+        return g
 
 
 def sort_clustering(G):

@@ -1,6 +1,7 @@
 import h5py
 from bikeability_optimisation.helper.data_helper import *
-from bikeability_optimisation.main.plot import plot_matrix, plot_meta_graph
+from bikeability_optimisation.main.plot import plot_matrix, plot_station_degree,\
+    plot_used_area
 from pathlib import Path
 from pyproj import Proj, transform
 
@@ -137,7 +138,7 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
 def analyse_city(save, city, input_folder, output_folder, plot_folder,
                  cluster=False, bg_map=False, bg_polygon=None, bg_nominatim=1,
                  communities=False,  comm_requests=None,
-                 comm_requests_result=None, plot_format='png'):
+                 comm_requests_result=None, plot_format='png', dpi=150):
     plt.rcdefaults()
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
@@ -157,6 +158,8 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
 
     if bg_map:
         polygon = get_polygon_from_json(bg_polygon)
+        plot_used_area(G_city, polygon, stations, folder=plot_folder,
+                       filename=save+'_used_area', plot_format=plot_format)
     else:
         polygon = None
     stations_pos = {}
@@ -170,14 +173,16 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
     df1 = data_to_matrix(stations, trips)
     print('Plotting OD Matrix.')
     plot_matrix(city, df1, plot_folder, save, cmap=None, figsize=None,
-                dpi=150, plot_format=plot_format)
+                dpi=dpi, plot_format=plot_format)
 
-    print('Plotting meta graph.')
-    G = matrix_to_graph(df1)
-    degree = plot_meta_graph(city, G, save=save, bg_polygon=polygon,
-                             bg_nominatim=bg_nominatim,
-                             plot_folder=plot_folder,  plot_format=plot_format,
-                             node_pos=stations_pos)
+    print('Plotting data.')
+    G, degree, indegree, outdegree, imbalance = matrix_to_graph(df1)
+
+    plot_station_degree(G, degree=degree, indegree=indegree,
+                        outdegree=outdegree,  node_cmap=None,
+                        node_pos=stations_pos, bg_area=polygon, save=save,
+                        plot_folder=plot_folder, plot_format=plot_format,
+                        dpi=dpi, figsize=None)
 
     if cluster:
         print('Calculating clustering.')
@@ -187,10 +192,7 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
         plot_matrix(city, df2, plot_folder, save=save+'_cluster',
                     figsize=None, dpi=150, plot_format=plot_format)
 
-        H = matrix_to_graph(df2)
-        print('Plotting clustered meta graph.')
-        plot_meta_graph(city, H, save=save+'_cluster', plot_folder=plot_folder,
-                        plot_format=plot_format)
+        H = matrix_to_graph(df2, data=False)
 
         df3 = nx.to_pandas_edgelist(H)
         rename_columns = {'source': 'NODE_ID1', 'target': 'NODE_ID2',
@@ -213,6 +215,9 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
     avg_trip_len = calc_average_trip_len(G_city, trips, penalties=True)
 
     hf_comp['station degree'] = degree
-    hf_comp['trips'] = [v for k, v in trips]
+    hf_comp['station indegree'] = indegree
+    hf_comp['station outdegree'] = outdegree
+    hf_comp['trips'] = [v for k, v in trips.items()]
+    hf_comp['imbalance'] = imbalance
     hf_comp['avg trip length'] = avg_trip_len
     hf_comp.close()
