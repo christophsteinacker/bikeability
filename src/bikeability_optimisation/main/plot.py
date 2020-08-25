@@ -963,7 +963,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
             len_norm = 1
         else:
             len_norm = len_by_st[end]
-        ax4.plot(bpp_cut, [x / len_norm for x in len_by_st[:end]],
+        ax4.plot(blp, len_by_st,
                  c=c_st[st], label='{}'.format(st))
     """for st, len_by_st in bl_st.items():
         ax4.plot(bpp_now, bl_st_now[st], marker=m_st[st],  c=c_st[st])"""
@@ -1033,7 +1033,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
         plot_bp_evo(save=save, G=nxG_plot, edited_edges=edited_edges_nx,
                     bike_path_perc=bike_path_perc, cut=cut, ps=bpp_idx,
                     node_size=ns, rev=rev, minmode=minmode,
-                    plot_folder=plot_folder, plot_format='png')
+                    plot_folder=plot_folder, plot_format=plot_format)
 
     # plt.show()
     plt.close('all')
@@ -1403,6 +1403,7 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     ba_y = {}
 
     for dist_mode in dist_modes:
+        print(dist_mode)
         save = saves[dist_mode]
         data = h5py.File(data_folder + 'comp_{}.hdf5'.format(save), 'r')
         data_algo = data['algorithm']
