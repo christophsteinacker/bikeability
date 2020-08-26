@@ -75,7 +75,7 @@ def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
         overlay = geopandas.GeoDataFrame(crs='epsg:4326',
                                          geometry=[overlay_poly])
         overlay = overlay.to_crs('epsg:3857')
-        overlay.plot(ax=ax, linewidth=5, alpha=0.2)
+        overlay.plot(ax=ax, lw=5, alpha=0.2)
 
     nx.draw_networkx(G, pos=node_pos, ax=ax, with_labels=False,
                      node_size=node_size, node_color=node_color,
@@ -796,9 +796,8 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
 
     c_ba = 'C0'
 
-    ax1.plot(bpp_cut, ba[:end], c=c_ba, label='bikeability')
-    ax1.plot(bpp_now, ba_now, c=c_ba, marker='D')
-    ax1.tick_params(axis='x', labelsize=16)
+    ax1.plot(bpp_cut, ba[:end], c=c_ba, label='bikeability', lw=2.5)
+    ax1.plot(bpp_now, ba_now, c=c_ba, ms=16, marker='D')
     xmax, ymax = coord_transf(bpp_now, max([ba_y, ba_now]),
                               xmax=1, xmin=0, ymax=1, ymin=0)
     ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_ba, ls='--', alpha=0.5)
@@ -807,14 +806,15 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
 
     ax1.set_ylabel('bikeability', fontsize=24, color=c_ba)
     ax1.tick_params(axis='y', labelsize=16, labelcolor=c_ba)
+    ax1.tick_params(axis='x', labelsize=16)
     ax1.yaxis.set_minor_locator(AutoMinorLocator())
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
 
     c_cost = 'C8'
 
     ax12.plot(bpp_cut, [x / total_cost[end] for x in total_cost[:end]],
-              c=c_cost, label='total cost')
-    ax12.plot(bpp_now, cost_now, c=c_cost, marker='s')
+              c=c_cost, label='total cost', lw=2.5)
+    ax12.plot(bpp_now, cost_now, c=c_cost, ms=16, marker='s')
     xmin, ymax = coord_transf(min(bpp_now, cost_x), cost_now,
                               xmax=1, xmin=0, ymax=1, ymin=0)
     ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_cost, ls='--', alpha=0.5)
@@ -846,8 +846,8 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax1ins = zoomed_inset_axes(ax1, 3.5, loc=1)
     x1, x2, y1, y2 = round(bpp_now - 0.05, 2), round(bpp_now + 0.05, 2), \
                      round(ba_now - 0.03, 2), min(round(ba_y + 0.03, 2), 1)
-    ax1ins.plot(bpp_cut, ba[:end])
-    ax1ins.plot(bpp_now, ba_now, c=c_ba, marker='D')
+    ax1ins.plot(bpp_cut, ba[:end], lw=2.5)
+    ax1ins.plot(bpp_now, ba_now, c=c_ba, ms=16, marker='D')
     xmax, ymax = coord_transf(bpp_now, max([ba_y, ba_now]),
                               xmin=x1, xmax=x2, ymin=y1, ymax=y2)
     ax1ins.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_ba, ls='--', alpha=0.5)
@@ -876,27 +876,35 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     c_nos = 'C1'
     c_los = 'm'
 
-    p1, = ax2.plot(bpp_cut, los[:end], label='length', c=c_los)
-    ax2.plot(bpp_now, los_now, c=c_los, marker='8')
+    p1, = ax2.plot(bpp_cut, los[:end], label='length', c=c_los, lw=2.5,
+                   zorder=1)
+    ax2.plot(bpp_now, los_now, c=c_los, ms=16, marker='8', zorder=3)
     xmax, ymax = coord_transf(max(bpp_now, los_x), los_now,
                               xmax=1, xmin=0, ymax=1, ymin=0)
-    ax2.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_los, ls='--', alpha=0.5)
-    ax2.axhline(y=los_now, xmax=xmax, xmin=0, c=c_los, ls='--', alpha=0.5)
+    ax2.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_los, ls='--', alpha=0.5,
+                zorder=2)
+    ax2.axhline(y=los_now, xmax=xmax, xmin=0, c=c_los, ls='--', alpha=0.5,
+                zorder=2)
     # ax2.axvline(x=los_x, ymax=ymax, ymin=0, c=c_los, ls='--', alpha=0.5)
-    ax2.axhline(y=los_y, xmax=xmax, xmin=0, c=c_los, ls='--', alpha=0.5)
+    ax2.axhline(y=los_y, xmax=xmax, xmin=0, c=c_los, ls='--', alpha=0.5,
+                zorder=2)
 
     ax2.set_ylabel('length on street', fontsize=24, color=c_los)
     ax2.tick_params(axis='y', labelsize=16, labelcolor=c_los)
     ax2.yaxis.set_minor_locator(AutoMinorLocator())
 
-    p2, = ax22.plot(bpp_cut, nos[:end], label='cyclists', c=c_nos)
-    ax22.plot(bpp_now, nos_now, c=c_nos, marker='v')
+    p2, = ax22.plot(bpp_cut, nos[:end], label='cyclists', c=c_nos, lw=2.5,
+                    zorder=1)
+    ax22.plot(bpp_now, nos_now, c=c_nos, ms=16, marker='v', zorder=3)
     xmin, ymax = coord_transf(max(bpp_now, nos_x), nos_now,
                               xmax=1, xmin=0, ymax=1, ymin=0)
-    ax22.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_nos, ls='--', alpha=0.5)
-    ax22.axhline(y=nos_now, xmax=1, xmin=xmin, c=c_nos, ls='--', alpha=0.5)
+    ax22.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_nos, ls='--', alpha=0.5,
+                 zorder=2)
+    ax22.axhline(y=nos_now, xmax=1, xmin=xmin, c=c_nos, ls='--', alpha=0.5,
+                 zorder=2)
     # ax22.axvline(x=nos_x, ymax=ymax, ymin=0, c=c_nos, ls='--', alpha=0.5)
-    ax22.axhline(y=nos_y, xmax=1, xmin=xmin, c=c_nos, ls='--', alpha=0.5)
+    ax22.axhline(y=nos_y, xmax=1, xmin=xmin, c=c_nos, ls='--', alpha=0.5,
+                 zorder=2)
 
     ax22.set_ylabel('cyclists on street', fontsize=24, color=c_nos)
     ax22.tick_params(axis='y', labelsize=16, labelcolor=c_nos)
@@ -924,26 +932,29 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     m_st = {'primary': 'p', 'secondary': 'p', 'tertiary': 'p',
             'residential': 'p', 'bike paths': 'P'}
 
-    for st, len_on_st in trdt_st_now.items():
-        xmax, ymax = coord_transf(bpp_now, len_on_st, ymax=1.15)
+    """for st, len_on_st in trdt_st_now.items():
+        xmax, ymax = coord_transf(bpp_now, len_on_st,
+                                  xmax=1, xmin=0, ymax=1, ymin=0)
         ax3.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_st[st], ls='--',
                     alpha=0.5)
         ax3.axhline(y=len_on_st, xmax=xmax, xmin=0, c=c_st[st], ls='--',
-                    alpha=0.5)
+                    alpha=0.5)"""
 
     for st, len_on_st in trdt_st.items():
-        ax3.plot(bpp_cut, len_on_st[:end], c=c_st[st], label=st)
+        ax3.plot(bpp_cut, len_on_st[:end], c=c_st[st], label=st, lw=2.5)
     for st, len_on_st in trdt_st.items():
-        ax3.plot(bpp_now, trdt_now[st], c=c_st[st], marker=m_st[st])
+        ax3.plot(bpp_now, trdt_now[st], c=c_st[st], ms=16, marker=m_st[st])
 
-    ax3.set_xlabel('% of bike paths by length', fontsize=18)
-    ax3.set_ylabel('length', fontsize=18)
-    ax3.set_title('Length on Street in {}'.format(city), fontsize=14)
+    ax3.set_xlabel('normalised fraction of bike paths', fontsize=24)
+    ax3.set_ylabel('length', fontsize=24)
+    if titles:
+        ax3.set_title('Length on Street Type in {}'.format(city), fontsize=24)
     ax3.tick_params(axis='x', labelsize=16)
     ax3.tick_params(axis='y', labelsize=16)
     ax3.xaxis.set_minor_locator(AutoMinorLocator())
     ax3.yaxis.set_minor_locator(AutoMinorLocator())
-    ax3.legend()
+    if legends:
+        ax3.legend(fontsize=24)
     fig3.savefig(plot_folder + '{:}_len_on_street_mode_{:d}{:}.{}'
                  .format(save, rev, minmode, plot_format), format=plot_format,
                  bbox_inches='tight')
@@ -963,12 +974,12 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
             len_norm = 1
         else:
             len_norm = len_by_st[end]
-        ax4.plot(blp, len_by_st,
-                 c=c_st[st], label='{}'.format(st))
+        ax4.plot(bpp_cut, [x / len_norm for x in len_by_st[:end]],
+                 c=c_st[st], label='{}'.format(st), lw=2.5)
     """for st, len_by_st in bl_st.items():
-        ax4.plot(bpp_now, bl_st_now[st], marker=m_st[st],  c=c_st[st])"""
+        ax4.plot(bpp_now, bl_st_now[st], ms=16, marker=m_st[st],  c=c_st[st])"""
 
-    ax4.axvline(x=bpp[cut] / bpp[end], c='#999999', ls='--', alpha=0.7, lw=3)
+    # ax4.axvline(x=bpp[cut] / bpp[end], c='#999999', ls='--', alpha=0.7, lw=3)
 
     ax4.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax4.set_ylabel('length', fontsize=24)
@@ -980,14 +991,14 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax4.xaxis.set_minor_locator(AutoMinorLocator())
     ax4.yaxis.set_minor_locator(AutoMinorLocator())
     if legends:
-        ax4.legend()
+        ax4.legend(fontsize=18)
     fig4.savefig(plot_folder + '{:}_len_bl_mode_{:d}{:}.{}'
                  .format(save, rev, minmode, plot_format), format=plot_format,
                  bbox_inches='tight')
 
     comp_st_driven = {st: [len_on_st[bpp_idx], trdt_st_now[st]]
                       for st, len_on_st in trdt_st.items()}
-    plot_barv_stacked(['Algorithm', 'Primary/Secondary'], comp_st_driven, c_st,
+    plot_barv_stacked(['Algorithm', 'P+S'], comp_st_driven, c_st,
                       title='', save=plot_folder+'{:}_comp_st_driven_{:d}{:}'
                       .format(save, rev, minmode), plot_format=plot_format)
 
@@ -1133,28 +1144,30 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
     ax4_hand = {}
     grp_algo = hf['algorithm']
     for m, d in grp_algo.items():
+        print(color)
+        print(label)
         bpp = d['bpp'][()]
         """bikeab = [np.trapz(ba[m][:idx], bpp[m][:idx]) for idx in
                   range(len(bpp[m]))]"""
         """cba = [bikeab[idx] / cost[m][idx] for idx in
                range(len(bpp[m]))]"""
-        ax1.plot(bpp, d['ba'][()], color=color[m], label=label[m])
+        ax1.plot(bpp, d['ba'][()], color=color[m], label=label[m], lw=2.5)
         """ax2.plot(bpp, bikeab, color=color[m], label=label[m])
         ax3.plot(bpp, cba, color=color[m], label=label[m])"""
         space = round(len(bpp) / 20)
-        ax4.plot(bpp, d['nos'][()], color=color[m], marker='v',
-                 markevery=space, label=label[m])
-        ax42.plot(bpp, d['los'][()], color=color[m], marker='8',
-                  markevery=space, label=label[m])
+        ax4.plot(bpp, d['nos'][()], color=color[m], ms=16, marker='v',
+                 markevery=space, label=label[m], lw=2.5)
+        ax42.plot(bpp, d['los'][()], color=color[m], ms=16, marker='8',
+                  markevery=space, label=label[m], lw=2.5)
         ax4_hand[m] = mlines.Line2D([], [], color=color[m], label=label[m])
 
-    # ax1.plot(bpp_now, ba_now, c='#999999', marker='D')
+    # ax1.plot(bpp_now, ba_now, c='#999999', ms=16, marker='D')
     xmax, ymax = coord_transf(bpp_now, ba_now, xmax=1, ymax=1, xmin=0, ymin=0)
     # ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c='#999999', ls=':', alpha=0.5)
     # ax1.axhline(y=ba_now, xmax=xmax, xmin=0, c='#999999', ls=':', alpha=0.5)
 
-    # ax4.plot(bpp_now, nos_now, c='#999999', marker='v')
-    # ax4.plot(bpp_now, los_now, c='#999999', marker='8')
+    # ax4.plot(bpp_now, nos_now, c='#999999', ms=16, marker='v')
+    # ax4.plot(bpp_now, los_now, c='#999999', ms=16, marker='8')
     xmax, ymax = coord_transf(bpp_now, nos_now, xmax=1, ymax=1, xmin=0, ymin=0)
     # ax4.axvline(x=bpp_now, ymax=ymax, ymin=0, c='#999999', ls=':', alpha=0.5)
     # ax4.axhline(y=nos_now, xmax=1, xmin=xmax, c='#999999', ls=':', alpha=0.5)
@@ -1194,10 +1207,10 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
         ax2.legend(loc=4, fontsize=24, markerscale=2)
         ax3.legend(numpoints=1, loc=4, fontsize=24, markerscale=2)
 
-    l_keys.append(mlines.Line2D([], [], color='k', marker='v',
+    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='v',
                                 label='cyclists'))
     l_labels.append('cyclists')
-    l_keys.append(mlines.Line2D([], [], color='k', marker='8', label='length'))
+    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
     l_labels.append('length')
     ax4.legend(l_keys, l_labels, numpoints=1, loc=1, fontsize=24,
                markerscale=2,
@@ -1217,7 +1230,7 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
 
 
 def plot_city(city, save, polygon_folder, input_folder, output_folder,
-              comp_folder, plot_folder, modes, correct_area=False,
+              comp_folder, plot_folder, modes, cut=True, correct_area=False,
               comp_modes=False,  bike_paths=None, plot_evo=False,
               evo_for=None,  plot_format='png'):
     if evo_for is None:
@@ -1299,10 +1312,11 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
         data[m] = hf_in['all']
         """data[m] = np.load(output_folder + '{}_data_mode_{:d}{:}.npy'
                           .format(save, m[0], m[1]), allow_pickle=True)"""
-
-    end = max([get_end(json.loads(d['trdt'][()]), data_now[3], m[0])
-               for m, d in data.items()])
-    # end = max([len(d[4]) for m, d in data.items()])-1
+    if cut:
+        end = max([get_end(json.loads(d['trdt'][()]), data_now[3], m[0])
+                   for m, d in data.items()])
+    else:
+        end = max([len(d['bpp'][()]) for m, d in data.items()])-1
     print('Cut after: ', end)
 
     bpp_now, ba_now, cost_now, nos_now, los_now = 0, 0, 0, 0, 0
@@ -1340,7 +1354,8 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
                 c[m_1] = c_rev[m[1]]
             else:
                 c[m_1] = c_norm[m[1]]
-        # label = {m: 'Removing' if m[0] == '0' else 'Building' for m in modes}
+        """label = {'{:d}{:}'.format(m[0], m[1]): 'Removing' if not m[0]
+        else 'Building' for m in modes}"""
         label = {'00': 'Unweigthed', '01': 'Street Type Penalty',
                  '02': 'Average Trip Length'}
         compare_modes(city=city, save=save, color=c, label=label,
@@ -1487,14 +1502,14 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
         bpp_m = [x / bpp_c[dist_mode][cut] for x in bpp_c[dist_mode][:cut]]
         bpp_scaled = [x * scale_x[dist_mode] for x in bpp[dist_mode]]
         ax1.plot(bpp_m, ba_c[dist_mode][:cut], color=color[dist_mode],
-                 label='{}'.format(dist_mode))
+                 label='{}'.format(dist_mode), lw=2.5)
         ax2.plot(bpp_scaled, ba[dist_mode], color=color[dist_mode],
-                 label='{}'.format(dist_mode))
+                 label='{}'.format(dist_mode), lw=2.5)
         space = round(len(bpp[dist_mode]) / 25)
-        ax3.plot(bpp_m, nos_c[dist_mode][:cut], marker='v', markevery=space,
-                 color=color[dist_mode])
-        ax32.plot(bpp_m, los_c[dist_mode][:cut], marker='8', markevery=space,
-                  color=color[dist_mode])
+        ax3.plot(bpp_m, nos_c[dist_mode][:cut], ms=16, marker='v', markevery=space,
+                 color=color[dist_mode], lw=2.5)
+        ax32.plot(bpp_m, los_c[dist_mode][:cut], ms=16, marker='8', markevery=space,
+                  color=color[dist_mode], lw=2.5)
         ax3_hand[dist_mode] = mlines.Line2D([], [], color=color[dist_mode])
 
     if legends:
@@ -1505,9 +1520,9 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     else:
         l_keys = []
         l_cities = []
-    l_keys.append(mlines.Line2D([], [], color='k', marker='v', label='cyclists'))
+    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='v', label='cyclists'))
     l_cities.append('cyclists')
-    l_keys.append(mlines.Line2D([], [], color='k', marker='8', label='length'))
+    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
     l_cities.append('length')
 
     ax3.legend(l_keys, l_cities, numpoints=1,
@@ -1671,26 +1686,26 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
                   range(len(bpp[city]))]
         bpp_scaled = [x * scale_x[city] for x in bpp[city]]
         ax1.plot(bpp[city], ba[city], color=color[city],
-                 label='{}'.format(city))
+                 label='{}'.format(city), lw=2.5)
         ax2.plot(bpp_scaled, ba[city], color=color[city],
-                 label='{}'.format(city))
+                 label='{}'.format(city), lw=2.5)
         ax3.plot(bpp[city], bikeab, color=color[city],
-                 label='{}'.format(city))
+                 label='{}'.format(city), lw=2.5)
         space = round(len(bpp[city]) / 25)
 
-        ax4.plot(bpp[city], nos[city], marker='v', markevery=space,
-                 color=color[city])
-        ax42.plot(bpp[city], los[city], marker='8', markevery=space,
-                  color=color[city])
+        ax4.plot(bpp[city], nos[city], ms=16, marker='v', markevery=space,
+                 color=color[city], lw=2.5)
+        ax42.plot(bpp[city], los[city], ms=16, marker='8', markevery=space,
+                  color=color[city], lw=2.5)
         ax4_hand[city] = mlines.Line2D([], [], color=color[city])
 
     # l_keys = [l_key for city, l_key in ax4_hand.items()]
     # l_cities = [city for city, l_key in ax4_hand.items()]
     l_keys = []
     l_cities = []
-    l_keys.append(mlines.Line2D([], [], color='k', marker='v', label='cyclists'))
+    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='v', label='cyclists'))
     l_cities.append('cyclists')
-    l_keys.append(mlines.Line2D([], [], color='k', marker='8', label='length'))
+    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
     l_cities.append('length')
 
     # ax1.legend(loc='lower right')

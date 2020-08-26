@@ -57,7 +57,7 @@ def len_of_bikepath_by_type(ee, G, rev):
     return len_fraction
 
 
-def coord_transf(x, y, xmin=-0.05, xmax=1.05, ymin=-0.05, ymax=1.05):
+def coord_transf(x, y, xmin=0.0, xmax=1.0, ymin=0.0, ymax=1.0):
     """
     Transfers the coordinates from data to relative coordiantes.
     :param x: x data coordinate
@@ -385,8 +385,8 @@ def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
         ax.set_xticks(x_pos)
         ax.set_xticklabels(keys)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
-    ax.set_ylabel(y_label)
-    ax.set_xlabel(' ', fontsize=12)
+    ax.set_ylabel(y_label, fontsize=24)
+    ax.set_xlabel('', fontsize=24)
     ax.set_title(title)
 
     plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
@@ -424,8 +424,8 @@ def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.set_xticks(x_pos)
     ax.set_xticklabels(labels)
-    ax.tick_params(axis='y', labelsize=16)
-    ax.tick_params(axis='x', labelsize=16)
+    ax.tick_params(axis='y', labelsize=24)
+    ax.tick_params(axis='x', labelsize=24)
     ax.set_title(title, fontsize=24)
 
     plt.savefig(save+'.{}'.format(plot_format), format=plot_format,
