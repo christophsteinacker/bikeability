@@ -384,7 +384,13 @@ def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
     if xticks:
         ax.set_xticks(x_pos)
         ax.set_xticklabels(keys)
+        ax.tick_params(axis='x', labelsize=24)
+    else:
+        ax.tick_params(axis='x', which='both', bottom=False, top=False,
+                       labelbottom=False)
+
     ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.tick_params(axis='y', labelsize=24)
     ax.set_ylabel(y_label, fontsize=24)
     ax.set_xlabel('', fontsize=24)
     ax.set_title(title)

@@ -409,7 +409,8 @@ def prepare_downloaded_map(G, trunk=False, consolidate=False, tol=35):
     return G
 
 
-def download_map_by_bbox(bbox, trunk=False, consolidate=False, tol=35):
+def download_map_by_bbox(bbox, trunk=False, consolidate=False, tol=35,
+                         truncate_by_edge=False):
     """
     Downloads a drive graph from osm given by the bbox and cleans it for usage.
     :param bbox: Boundary box of the map.
@@ -421,6 +422,9 @@ def download_map_by_bbox(bbox, trunk=False, consolidate=False, tol=35):
     :type consolidate: bool
     :param tol: Tolerance of intersection consolidation in meters
     :type tol: float
+    :param truncate_by_edge: if True, retain node if it’s outside bounding box
+    but at least one of node’s neighbors are within bounding box
+    :type truncate_by_edge: bool
     :return: Cleaned graph.
     :rtype: networkx graph
     """
@@ -428,7 +432,8 @@ def download_map_by_bbox(bbox, trunk=False, consolidate=False, tol=35):
           'southern bound: {}, eastern bound: {}, western bound: {}'
           .format(bbox[0], bbox[1], bbox[2], bbox[3]))
     G = ox.graph_from_bbox(bbox[0], bbox[1], bbox[2], bbox[3],
-                           network_type='drive')
+                           network_type='drive',
+                           truncate_by_edge=truncate_by_edge)
 
     G = prepare_downloaded_map(G, trunk, consolidate=consolidate, tol=tol)
 
@@ -436,7 +441,7 @@ def download_map_by_bbox(bbox, trunk=False, consolidate=False, tol=35):
 
 
 def download_map_by_name(city, nominatim_result=1, trunk=False,
-                         consolidate=False, tol=35):
+                         consolidate=False, tol=35, truncate_by_edge=False):
     """
     Downloads a drive graph from osm given by the name and geocode of the
     nominatim database and  cleans it for usage.
@@ -452,20 +457,25 @@ def download_map_by_name(city, nominatim_result=1, trunk=False,
     :type consolidate: bool
     :param tol: Tolerance of intersection consolidation in meters
     :type tol: float
+    :param truncate_by_edge: if True, retain node if it’s outside bounding box
+    but at least one of node’s neighbors are within bounding box
+    :type truncate_by_edge: bool
     :return: Cleaned graph.
     :rtype: networkx graph
     """
     print('Downloading map py place. Name of the place: {}, '
           'Nominatim result number {}.'.format(city, nominatim_result))
     G = ox.graph_from_place(city, which_result=nominatim_result,
-                            network_type='drive')
+                            network_type='drive',
+                            truncate_by_edge=truncate_by_edge)
 
     G = prepare_downloaded_map(G, trunk, consolidate=consolidate, tol=tol)
 
     return G
 
 
-def download_map_by_polygon(polygon, trunk=False, consolidate=False, tol=35):
+def download_map_by_polygon(polygon, trunk=False, consolidate=False, tol=35,
+                            truncate_by_edge=False):
     """
     Downloads a drive graph from osm given by the polygon and cleans it for
     usage.
@@ -478,11 +488,15 @@ def download_map_by_polygon(polygon, trunk=False, consolidate=False, tol=35):
     :type consolidate: bool
     :param tol: Tolerance of intersection consolidation in meters
     :type tol: float
+    :param truncate_by_edge: if True, retain node if it’s outside bounding box
+    but at least one of node’s neighbors are within bounding box
+    :type truncate_by_edge: bool
     :return: Cleaned graph.
     :rtype: networkx graph
     """
     print('Downloading map py polygon. Given polygon: {}'.format(polygon))
-    G = ox.graph_from_polygon(polygon, network_type='drive')
+    G = ox.graph_from_polygon(polygon, network_type='drive',
+                              truncate_by_edge=truncate_by_edge)
 
     G = prepare_downloaded_map(G, trunk, consolidate=consolidate, tol=tol)
 

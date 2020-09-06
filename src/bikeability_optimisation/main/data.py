@@ -6,12 +6,14 @@ from pathlib import Path
 from pyproj import Proj, transform
 
 
-def prep_city(city_name, save_name, nominatim_name, nominatim_result,
-              input_csv, output_folder, polygon_json, plot_folder,
+def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
+              plot_folder, nominatim_name=None, nominatim_result=1,
               trunk=False, consolidate=False, tol=35, by_bbox=True,
               plot_bbox_size=None, by_city=True, plot_city_size=None,
               by_polygon=True, plot_size=None, cached_graph=False,
               cached_graph_folder=None, cached_graph_name=None):
+    if nominatim_name is None:
+        nominatim_name = city_name
     if plot_size is None:
         plot_size = [20, 20]
     if plot_city_size is None:
@@ -136,9 +138,10 @@ def prep_city(city_name, save_name, nominatim_name, nominatim_result,
 
 
 def analyse_city(save, city, input_folder, output_folder, plot_folder,
-                 cluster=False, bg_map=False, bg_polygon=None, bg_nominatim=1,
-                 communities=False,  comm_requests=None,
-                 comm_requests_result=None, plot_format='png', dpi=150):
+                 cluster=False, bg_map=False, bg_polygon=None,
+                 overlay=False, overlay_ploy=None, communities=False,
+                 comm_requests=None, comm_requests_result=None,
+                 plot_format='png', dpi=150):
     plt.rcdefaults()
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
@@ -158,10 +161,22 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
 
     if bg_map:
         polygon = get_polygon_from_json(bg_polygon)
+        if overlay and overlay_ploy is not None:
+            overlay_p = get_polygon_from_json(overlay_ploy)
+        elif overlay and overlay_ploy is None:
+            overlay_p = get_polygon_from_json(bg_polygon)
+        else:
+            overlay_p = None
         plot_used_area(G_city, polygon, stations, folder=plot_folder,
                        filename=save+'_used_area', plot_format=plot_format)
     else:
         polygon = None
+        if overlay and overlay_ploy is not None:
+            overlay_p = get_polygon_from_json(overlay_ploy)
+        else:
+            overlay_p = None
+
+
     stations_pos = {}
     for s in stations:
         lon = G_city.nodes[s]['x']
@@ -180,7 +195,8 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
 
     plot_station_degree(G, degree=degree, indegree=indegree,
                         outdegree=outdegree,  node_cmap=None,
-                        node_pos=stations_pos, bg_area=polygon, save=save,
+                        node_pos=stations_pos, bg_area=polygon,
+                        overlay_poly=overlay_p, save=save,
                         plot_folder=plot_folder, plot_format=plot_format,
                         dpi=dpi, figsize=None)
 

@@ -24,7 +24,7 @@ def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
                   node_cmap_label='',
                   edge_width=1.0, edge_color='k', edge_cmap=None,
                   edge_cmin=None, edge_cmax=None, edge_cmap_label='',
-                  bg_area=None, overlay_poly=None,  scalebar=False,
+                  bg_area=None, overlay_poly=None, scalebar=False,
                   figsize=None, dpi=150, folder='', filename='',
                   plot_format='png'):
     """
@@ -81,7 +81,7 @@ def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
                      node_size=node_size, node_color=node_color,
                      cmap=node_cmap, vmin=node_cmin, vmax=node_cmax,
                      width=edge_width, edge_color=edge_color,
-                     edge_cmap=edge_cmap,  edge_vmin=edge_cmin,
+                     edge_cmap=edge_cmap, edge_vmin=edge_cmin,
                      edge_vmax=edge_cmax)
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
@@ -97,8 +97,8 @@ def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
         cbar.ax.set_xlabel(node_cmap_label, fontsize=18)
     if (node_cmap is None) and (edge_cmap is not None):
         sm = plt.cm.ScalarMappable(cmap=edge_cmap,
-                                     norm=Normalize(vmin=edge_cmin,
-                                                    vmax=edge_cmax))
+                                   norm=Normalize(vmin=edge_cmin,
+                                                  vmax=edge_cmax))
         divider = make_axes_locatable(ax)
         cbaxes = divider.append_axes('bottom', size="5%", pad=0.05)
         cbar = fig.colorbar(sm, orientation='horizontal', cax=cbaxes)
@@ -131,8 +131,8 @@ def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
 
 def plot_station_degree(G, degree=None, indegree=None, outdegree=None,
                         node_cmap=None, node_pos=None, bg_area=None,
-                        save='', plot_folder='', plot_format='png', dpi=150,
-                        figsize=None):
+                        overlay_poly=None, save='', plot_folder='',
+                        plot_format='png', dpi=150, figsize=None):
     if node_cmap is None:
         node_cmap = plt.cm.get_cmap('plasma_r')
     if node_pos is None:
@@ -151,9 +151,9 @@ def plot_station_degree(G, degree=None, indegree=None, outdegree=None,
     plot_nx_graph(G, node_pos=node_pos, node_size=100, node_color=degree,
                   node_cmap=node_cmap, node_cmin=min_degree,
                   node_cmax=max_degree, node_cmap_label='station degree',
-                  edge_width=0, bg_area=bg_area, figsize=figsize, dpi=dpi,
-                  folder=plot_folder, filename=save+'_degree_graph',
-                  plot_format=plot_format)
+                  edge_width=0, bg_area=bg_area,  overlay_poly=overlay_poly,
+                  figsize=figsize, dpi=dpi, folder=plot_folder,
+                  filename=save + '_degree_graph', plot_format=plot_format)
 
     if min(degree) <= 50:
         hist_xlim = (0, max(degree) + 1)
@@ -189,7 +189,7 @@ def plot_stats(saves, colors, data_folder, plot_folder, plot_format='png',
     avg_trip_len = {}
     for city, save in saves.items():
         print(city)
-        city_plot = plot_folder+'{}/'.format(save)
+        city_plot = plot_folder + '{}/'.format(save)
         Path(city_plot).mkdir(parents=True, exist_ok=True)
         data = h5py.File('{0:}{1:}/{1:}_analysis.hdf5'.format(data_folder,
                                                               save), 'r')
@@ -204,10 +204,10 @@ def plot_stats(saves, colors, data_folder, plot_folder, plot_format='png',
         unique_trips = len(set(trips[city]))
         test = []
         for idx, t_1 in enumerate(sorted(trips[city])):
-            test.extend([idx]*t_1)
+            test.extend([idx] * t_1)
         xticks = {i: str(i) for i in np.arange(101, step=25)}
         plot_histogram(test, '{}{}_trips_test'.format(city_plot, save),
-                       bins=len(set(test))+1, xlim=[0, len(set(test))],
+                       bins=len(set(test)) + 1, xlim=[0, len(set(test))],
                        xlabel='', ylabel='# of Cylists', cumulative=True,
                        density=True, xticks=xticks,
                        plot_format=plot_format, dpi=dpi)
@@ -251,11 +251,11 @@ def plot_stats(saves, colors, data_folder, plot_folder, plot_format='png',
         deg_median[k] = np.median(v)
         deg_std[k] = stats.tstd(v)
         deg_var[k] = stats.variation(v)
-    plot_barh(deg_mean, colors, plot_folder+'deg_mean',
+    plot_barh(deg_mean, colors, plot_folder + 'deg_mean',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
-    plot_barh(deg_median, colors, plot_folder+'deg_median',
+    plot_barh(deg_median, colors, plot_folder + 'deg_median',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
-    plot_barh(deg_std, colors, plot_folder+'deg_std',
+    plot_barh(deg_std, colors, plot_folder + 'deg_std',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
     plot_barh(deg_var, colors, plot_folder + 'deg_var',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
@@ -267,13 +267,13 @@ def plot_stats(saves, colors, data_folder, plot_folder, plot_format='png',
         trip_var[k] = stats.variation(v)
         trips_s = sorted(v)
         print('10 most used trips: {}'.format(trips_s[-10:]))
-        trip_ttp[k] = sum(trips_s[round(0.90*len(v)):]) / sum(v)
-        trip_ltp[k] = sum(trips_s[:round(0.50*len(v))]) / sum(v)
-    plot_barh(trip_median, colors, plot_folder+'trip_mean',
+        trip_ttp[k] = sum(trips_s[round(0.90 * len(v)):]) / sum(v)
+        trip_ltp[k] = sum(trips_s[:round(0.50 * len(v))]) / sum(v)
+    plot_barh(trip_median, colors, plot_folder + 'trip_mean',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
-    plot_barh(trip_mean, colors, plot_folder+'trip_median',
+    plot_barh(trip_mean, colors, plot_folder + 'trip_median',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
-    plot_barh(trip_std, colors, plot_folder+'trip_std',
+    plot_barh(trip_std, colors, plot_folder + 'trip_std',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
     plot_barh(trip_var, colors, plot_folder + 'trip_var',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
@@ -286,7 +286,7 @@ def plot_stats(saves, colors, data_folder, plot_folder, plot_format='png',
     plot_barh(trip_ltp, colors, plot_folder + 'trip_ltp',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
 
-    plot_barh(avg_trip_len, colors, plot_folder+'avg_trip_len',
+    plot_barh(avg_trip_len, colors, plot_folder + 'avg_trip_len',
               plot_format=plot_format, dpi=dpi, figsize=figsize)
 
 
@@ -301,7 +301,7 @@ def plot_edge_types(G, ns, save, plot_folder, plot_format='png',
 
 
 def plot_used_area(g, area, stations, stations_color='C0', station_size=100,
-                   figsize=None, dpi=150,  folder='', filename='',
+                   figsize=None, dpi=150, folder='', filename='',
                    plot_format='png'):
     h = nx.Graph(nx.induced_subgraph(g, stations))
     h.remove_edges_from(list(h.edges))
@@ -312,8 +312,8 @@ def plot_used_area(g, area, stations, stations_color='C0', station_size=100,
                 h.nodes(data=True)}
     plot_nx_graph(h, node_pos=node_pos, node_size=station_size,
                   node_color=stations_color, bg_area=area, scalebar=True,
-                  overlay_poly=area,  figsize=figsize, dpi=dpi, folder=folder,
-                  filename=filename,  plot_format=plot_format)
+                  overlay_poly=area, figsize=figsize, dpi=dpi, folder=folder,
+                  filename=filename, plot_format=plot_format)
 
 
 def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
@@ -351,7 +351,7 @@ def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
                   node_size=node_size, node_color='C0', node_zorder=3,
                   edge_linewidth=3, edge_color=ec, show=False, close=False)
     fig.suptitle('Edge load in {}'.format(city), fontsize='x-large')
-    plt.savefig(plot_folder+'{0:s}-load-{1:d}{2:}.{3:s}'
+    plt.savefig(plot_folder + '{0:s}-load-{1:d}{2:}.{3:s}'
                 .format(save, rev, minmode, plot_format), format=plot_format)
     plt.close(fig)
 
@@ -383,9 +383,9 @@ def plot_used_nodes(save, G, trip_nbrs, stations, plot_folder,
     print('Minimal station usage: {}'.format(min_n))
 
     r = magnitude(max_n)
-    hist_xlim = (0.0, round(max_n+0.1*max_n, -(r-1)))
+    hist_xlim = (0.0, round(max_n + 0.1 * max_n, -(r - 1)))
 
-    hist_data = [value for key, value in n_rel.items() if value != max_n+1]
+    hist_data = [value for key, value in n_rel.items() if value != max_n + 1]
     hist_save = '{}{}_stations_usage_distribution'.format(plot_folder, save)
     hist_xlim = (0.0, round(max_n + 0.1 * max_n, -(r - 1)))
     plot_histogram(hist_data, hist_save, xlabel='Number of total Trips',
@@ -415,21 +415,21 @@ def plot_used_nodes(save, G, trip_nbrs, stations, plot_folder,
         r = magnitude(max_n)
         cbar = fig2.colorbar(sm, orientation='horizontal', cax=cbaxes,
                              ticks=[0, round(max_n / 2), max_n])
-        cbar.ax.set_xticklabels([0, int(round(max_n / 2, -(r-2))),
-                                 round(max_n, -(r-1))])
+        cbar.ax.set_xticklabels([0, int(round(max_n / 2, -(r - 2))),
+                                 round(max_n, -(r - 1))])
     else:
         max_r = magnitude(max_n)
         min_r = magnitude(min_n)
         cbar = fig2.colorbar(sm, orientation='horizontal', cax=cbaxes,
                              ticks=[0, min_n, round(max_n / 2), max_n])
-        cbar.ax.set_xticklabels([0, round(min_n, -(min_r-1)),
-                                 int(round(max_n / 2, -(max_r-2))),
-                                 round(max_n, -(max_r-1))])
+        cbar.ax.set_xticklabels([0, round(min_n, -(min_r - 1)),
+                                 int(round(max_n / 2, -(max_r - 2))),
+                                 round(max_n, -(max_r - 1))])
 
     cbar.ax.tick_params(axis='x', labelsize=16)
     cbar.ax.set_xlabel('total number of trips', fontsize=18)
 
-    #fig2.suptitle('{}, Stations: {}, Trips: {}'
+    # fig2.suptitle('{}, Stations: {}, Trips: {}'
     #              .format(city.capitalize(), station_count, trip_count),
     #              fontsize=24)
     fig2.savefig(plot_folder + '{}_stations_used.{}'
@@ -512,9 +512,9 @@ def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
 
     idx = next(x for x, val in enumerate(bpp_algo) if abs(val - bpp_cs) <=
                0.001)
-    idx = min(range(len(bpp_algo)), key=lambda i: abs(bpp_algo[i]-bpp_cs))
+    idx = min(range(len(bpp_algo)), key=lambda i: abs(bpp_algo[i] - bpp_cs))
 
-    print('Difference in BPP between p+s and algo: {}'
+    print('Difference in BPP between p+s and algo: {:6.5f}'
           .format(abs(bpp_cs - bpp_algo[idx])))
 
     ee_algo_cut = ee_algo[:idx]
@@ -575,11 +575,10 @@ def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
             else:
                 ec.append(color_unused)
                 unused.append((u, v, k))
-        print('Overlap between p+s and algo: {}'.format(len_both /
-                                                        (len_cs+len_both)))
+        print('Overlap between p+s and algo: {:3.2f}'
+              .format(len_both / (len_cs + len_both)))
     else:
         print('You have to choose between algo, p+s and diff.')
-
 
     fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
     ox.plot_graph(G, bgcolor='#ffffff', ax=ax,
@@ -589,17 +588,17 @@ def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
     if mode == 'algo':
         leg = [Line2D([0], [0], color=color_algo, lw=4),
                Line2D([0], [0], color=color_unused, lw=4)]
-        #ax.legend(leg, ['Algorithm', 'None'],
+        # ax.legend(leg, ['Algorithm', 'None'],
         #          bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
         #          ncol=2, mode="expand", borderaxespad=0., fontsize=12)
-        #ax.set_title('Algorithm', fontsize=24)
+        # ax.set_title('Algorithm', fontsize=24)
     elif mode == 'p+s':
         leg = [Line2D([0], [0], color=color_cs, lw=4),
                Line2D([0], [0], color=color_unused, lw=4)]
-        #ax.legend(leg, ['Primary + Secondary', 'None'],
+        # ax.legend(leg, ['Primary + Secondary', 'None'],
         #          bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
         #          ncol=2, mode="expand", borderaxespad=0., fontsize=12)
-        #ax.set_title('Primary/Secondary', fontsize=24)
+        # ax.set_title('Primary/Secondary', fontsize=24)
     elif mode == 'diff':
         leg = [Line2D([0], [0], color=color_both, lw=4),
                Line2D([0], [0], color=color_algo, lw=4),
@@ -608,8 +607,8 @@ def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
         # ax.legend(leg, ['Both', 'Algorithm', 'Primary + Secondary', 'None'],
         #          bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
         #          ncol=4, mode="expand", borderaxespad=0., fontsize=12)
-        #ax.set_title('Comparison', fontsize=24)
-    plt.savefig(plot_folder+'{0:s}-bp-build-{1:d}{2:d}_{3:s}.{4:s}'
+        # ax.set_title('Comparison', fontsize=24)
+    plt.savefig(plot_folder + '{0:s}-bp-build-{1:d}{2:d}_{3:s}.{4:s}'
                 .format(save, rev, minmode, mode, plot_format),
                 format=plot_format, bbox_inches='tight')
     plt.close(fig)
@@ -629,12 +628,11 @@ def plot_bp_diff(G, ee_1, ee_2, bpp_1, bpp_2, node_color,
 
     nx.set_edge_attributes(G, False, '1')
     nx.set_edge_attributes(G, False, '2')
-
     if not rev:
         ee_1 = list(reversed(ee_1))
-        bpp_1 = list(reversed(bpp_1))
+        # bpp_1 = list(reversed(bpp_1))
         ee_2 = list(reversed(ee_2))
-        bpp_2 = list(reversed(bpp_2))
+        # bpp_2 = list(reversed(bpp_2))
 
     color_1 = 'midnightblue'
     color_2 = 'darkorange'
@@ -779,7 +777,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
 
     print('Mode: {:d}{:}, ba=1 after: {:d}, bpp at ba=1: {:3.2f}, '
           'bpp big roads: {:3.2f}, edges: {:}, max bpp: {:3.2f}'
-          .format(rev, minmode, end, bpp[end], bpp_now*bpp[end],
+          .format(rev, minmode, end, bpp[end], bpp_now * bpp[end],
                   len(edited_edges_nx), max_bpp))
 
     print('Reached ba=0.8 at {:3.2f} bpp'
@@ -999,7 +997,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     comp_st_driven = {st: [len_on_st[bpp_idx], trdt_st_now[st]]
                       for st, len_on_st in trdt_st.items()}
     plot_barv_stacked(['Algorithm', 'P+S'], comp_st_driven, c_st,
-                      title='', save=plot_folder+'{:}_comp_st_driven_{:d}{:}'
+                      title='', save=plot_folder + '{:}_comp_st_driven_{:d}{:}'
                       .format(save, rev, minmode), plot_format=plot_format)
 
     diff_core = {}
@@ -1009,7 +1007,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     c_diff_core = {'Bikeability': c_ba, '# Trips': c_nos,
                    'Length': c_los}
     plot_barv(diff_core, c_diff_core,
-              plot_folder+'{:}_improvement_core_{:d}{:}'
+              plot_folder + '{:}_improvement_core_{:d}{:}'
               .format(save, rev, minmode), plot_format=plot_format,
               figsize=[10, 12], y_label='',
               title='Change compared to primary and secondary only')
@@ -1019,7 +1017,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     diff_st['bike paths'] = trdt_st['bike paths'][bpp_idx] - \
                             trdt_st_now['bike paths']
     c_diff_st = {st: c for st, c in c_st.items()}
-    plot_barv(diff_st, c_diff_st, plot_folder+'{:}_improvement_st_{:d}{:}'
+    plot_barv(diff_st, c_diff_st, plot_folder + '{:}_improvement_st_{:d}{:}'
               .format(save, rev, minmode), plot_format=plot_format,
               figsize=[10, 12], y_label='',
               title='Change compared to primary and secondary only')
@@ -1049,8 +1047,9 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     # plt.show()
     plt.close('all')
 
-    print('ba: {}, ba now: {}, los: {}, los now: {}, nos: {}, nos now: {}'
-          .format(ba_y, ba_now, los_y, los_now, nos_y, nos_now))
+    print('ba: {:4.3f}, ba now: {:4.3f}, los: {:4.3f}, los now: {:4.3f}, '
+          'nos: {:4.3f}, nos now: {:4.3f}, bpp now: {:4.3f}'
+          .format(ba_y, ba_now, los_y, los_now, nos_y, nos_now, bpp_now))
 
     hf_group['edited edges'] = edited_edges_nx
     hf_group['end'] = end
@@ -1187,7 +1186,7 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
             l_labels = ['Removing', 'Building']
         else:
             l_keys = l_keys_r
-            l_labels = ['Unweigthed', 'Street Type Penalty',
+            l_labels = ['Unweighted', 'Street Type Penalty',
                         'Average Trip Length']
     else:
         l_keys = []
@@ -1210,7 +1209,8 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
     l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='v',
                                 label='cyclists'))
     l_labels.append('cyclists')
-    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
+    l_keys.append(
+        mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
     l_labels.append('length')
     ax4.legend(l_keys, l_labels, numpoints=1, loc=1, fontsize=24,
                markerscale=2,
@@ -1231,12 +1231,12 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
 
 def plot_city(city, save, polygon_folder, input_folder, output_folder,
               comp_folder, plot_folder, modes, cut=True, correct_area=False,
-              comp_modes=False,  bike_paths=None, plot_evo=False,
-              evo_for=None,  plot_format='png'):
+              comp_modes=False, bike_paths=None, plot_evo=False,
+              evo_for=None, plot_format='png'):
     if evo_for is None:
         evo_for = [(False, 1), (False, 3)]
 
-    hf_comp = h5py.File(comp_folder+'comp_{}.hdf5'.format(save), 'w')
+    hf_comp = h5py.File(comp_folder + 'comp_{}.hdf5'.format(save), 'w')
     hf_comp.attrs['city'] = city
 
     plt.rcdefaults()
@@ -1263,12 +1263,11 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
     hf_comp.attrs['nbr of stations'] = len(stations)
     hf_comp['stations'] = stations
 
-
     print('City: {}, stations: {},trips: {} (rt excl.: {}), '
           'unique trips: {} (rt excl. {})'
           .format(city, len(stations), trips, trips_re, utrips, utrips_re))
 
-    nxG = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
+    nxG = ox.load_graphml(filepath=input_folder + '{}.graphml'.format(save),
                           node_type=int)
     hf_comp.attrs['nodes'] = len(nxG.nodes)
     hf_comp.attrs['edges'] = len(nxG.edges)
@@ -1307,7 +1306,7 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
     # modes = ['{:d}{:}'.format(m[0], m[1]) for m in modes]
     data = {}
     for m in modes:
-        hf_in = h5py.File(output_folder+'{}_data_mode_{:d}{:}.hdf5'
+        hf_in = h5py.File(output_folder + '{}_data_mode_{:d}{:}.hdf5'
                           .format(save, m[0], m[1]), 'r')
         data[m] = hf_in['all']
         """data[m] = np.load(output_folder + '{}_data_mode_{:d}{:}.npy'
@@ -1316,7 +1315,7 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
         end = max([get_end(json.loads(d['trdt'][()]), data_now[3], m[0])
                    for m, d in data.items()])
     else:
-        end = max([len(d['bpp'][()]) for m, d in data.items()])-1
+        end = max([len(d['bpp'][()]) for m, d in data.items()]) - 1
     print('Cut after: ', end)
 
     bpp_now, ba_now, cost_now, nos_now, los_now = 0, 0, 0, 0, 0
@@ -1365,7 +1364,7 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
 
 def compare_distributions(city, base, base_save, graph_folder, data_folder,
                           plot_folder, mode, titles=False, legends=False,
-                          figsize=None,  plot_format='png', evo=False):
+                          figsize=None, plot_format='png', evo=False):
     if figsize is None:
         figsize = (12, 10)
     rev = mode[0]
@@ -1376,17 +1375,16 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
 
     plt.rcdefaults()
 
-    G = ox.load_graphml(filepath=graph_folder+'{}.graphml'.format(base_save),
+    G = ox.load_graphml(filepath=graph_folder + '{}.graphml'.format(base_save),
                         node_type=int)
 
-    saves = {'Real Data': base_save, 'Homog. Demand': base_save+'_ata',
-             'Homog. Stations': base_save+'_homog'}
+    saves = {'Real Data': base_save, 'Homog. Demand': base_save + '_ata',
+             'Homog. Stations': base_save + '_homog'}
     dist_modes = [k for k, v in saves.items()]
 
     scale_x = calc_scale(base, dist_modes, saves, data_folder, mode)
 
-
-    colors = ['teal', 'purple', 'blue']
+    colors = ['#000075', '#800000', '#469990']
     color = {m: colors[idx] for idx, m in enumerate(dist_modes)}
 
     ee = {}
@@ -1506,9 +1504,11 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
         ax2.plot(bpp_scaled, ba[dist_mode], color=color[dist_mode],
                  label='{}'.format(dist_mode), lw=2.5)
         space = round(len(bpp[dist_mode]) / 25)
-        ax3.plot(bpp_m, nos_c[dist_mode][:cut], ms=16, marker='v', markevery=space,
+        ax3.plot(bpp_m, nos_c[dist_mode][:cut], ms=16, marker='v',
+                 markevery=space,
                  color=color[dist_mode], lw=2.5)
-        ax32.plot(bpp_m, los_c[dist_mode][:cut], ms=16, marker='8', markevery=space,
+        ax32.plot(bpp_m, los_c[dist_mode][:cut], ms=16, marker='8',
+                  markevery=space,
                   color=color[dist_mode], lw=2.5)
         ax3_hand[dist_mode] = mlines.Line2D([], [], color=color[dist_mode])
 
@@ -1520,9 +1520,11 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     else:
         l_keys = []
         l_cities = []
-    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='v', label='cyclists'))
+    l_keys.append(
+        mlines.Line2D([], [], color='k', ms=16, marker='v', label='cyclists'))
     l_cities.append('cyclists')
-    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
+    l_keys.append(
+        mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
     l_cities.append('length')
 
     ax3.legend(l_keys, l_cities, numpoints=1,
@@ -1563,7 +1565,7 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
                      base_save, rev, minmode, plot_folder, plot_format='png')
         plot_bp_diff(G, ee[dist_modes[1]], ee[dist_modes[2]],
                      bpp_c[dist_modes[1]], bpp_c[dist_modes[2]], 'k', 0,
-                     base_save+'_ata', rev, minmode, plot_folder,
+                     base_save + '_ata', rev, minmode, plot_folder,
                      plot_format='png')
     plt.close('all')
     # plt.show()
@@ -1628,8 +1630,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
         sa_ratio[city] = data['ratio stations area'][()]
 
     fig1, ax1 = plt.subplots(dpi=150, figsize=figsize)
-    ax1.set_xlabel('normalised fraction of bike paths', fontsize=12)
-    ax1.set_ylabel('bikeability', fontsize=12)
+    ax1.set_xlabel('normalised fraction of bike paths', fontsize=24)
+    ax1.set_ylabel('bikeability', fontsize=24)
     # ax1.set_title('Comparison of Bikeabilities', fontsize=14)
     ax1.tick_params(axis='x', labelsize=16)
     ax1.tick_params(axis='y', labelsize=16)
@@ -1639,8 +1641,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax1.set_xlim(0.0, 1.0)
 
     fig2, ax2 = plt.subplots(dpi=150, figsize=figsize)
-    ax2.set_xlabel('scaled normalised fraction of bike paths', fontsize=12)
-    ax2.set_ylabel('bikeability', fontsize=12)
+    ax2.set_xlabel('scaled normalised fraction of bike paths', fontsize=24)
+    ax2.set_ylabel('bikeability', fontsize=24)
     # ax2.set_title('Comparison of Scaled Bikeabilities', fontsize=14)
     ax2.tick_params(axis='x', labelsize=16)
     ax2.tick_params(axis='y', labelsize=16)
@@ -1650,8 +1652,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax2.set_xlim(0.0, 1.0)
 
     fig3, ax3 = plt.subplots(dpi=150, figsize=figsize)
-    ax3.set_xlabel('normalised fraction of bike paths', fontsize=12)
-    ax3.set_ylabel('integrated bikeability', fontsize=12)
+    ax3.set_xlabel('normalised fraction of bike paths', fontsize=24)
+    ax3.set_ylabel('integrated bikeability', fontsize=24)
     # ax3.set_title('Comparison of Integrated Bikeabilities', fontsize=14)
     ax3.tick_params(axis='x', labelsize=16)
     ax3.tick_params(axis='y', labelsize=16)
@@ -1666,16 +1668,16 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax4.set_ylim(0.0, 1.0)
     ax42.set_ylim(0.0, 1.0)
 
-    ax4.set_ylabel('cyclists on street', fontsize=12)
+    ax4.set_ylabel('cyclists on street', fontsize=24)
     ax4.tick_params(axis='y', labelsize=16)
     ax4.yaxis.set_minor_locator(AutoMinorLocator())
 
-    ax42.set_ylabel('length on street', fontsize=12)
+    ax42.set_ylabel('length on street', fontsize=24)
     ax42.tick_params(axis='y', labelsize=16)
     ax42.yaxis.set_minor_locator(AutoMinorLocator())
 
     # ax4.set_title('Comaprison of Trips and Length on Street', fontsize=14)
-    ax4.set_xlabel('normalised fraction of bike paths', fontsize=12)
+    ax4.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax4.tick_params(axis='x', labelsize=16)
     ax4.xaxis.set_minor_locator(AutoMinorLocator())
 
@@ -1703,9 +1705,11 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     # l_cities = [city for city, l_key in ax4_hand.items()]
     l_keys = []
     l_cities = []
-    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='v', label='cyclists'))
+    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='v',
+                                label='cyclists'))
     l_cities.append('cyclists')
-    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
+    l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='8',
+                                label='length'))
     l_cities.append('length')
 
     # ax1.legend(loc='lower right')
@@ -1727,26 +1731,30 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     fig4.savefig(save_plot + 'los_nos_{:d}{:}.{}'
                  .format(rev, minmode, plot_format), format=plot_format,
                  bbox_inches='tight')
-    plot_barv(scale_x, color, save_plot+'scalefactor_{:d}{:}'
+    scale_x_bar = {k: v for k, v in sorted(scale_x.items(),
+                                           key=lambda item: item[1],
+                                           reverse=True)}
+    plot_barv(scale_x_bar, color, save_plot + 'scalefactor_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format, ymin=0, ymax=1,
               xticks=False)
-    plot_barh(trdt_rat, color, save_plot+'ratio_max_min_traveled_{:d}{:}'
+    plot_barh(trdt_rat, color, save_plot + 'ratio_max_min_traveled_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format,
               x_label=r'$trdt_{max} / trdt_{min}$')
-    plot_barh(sn_ratio, color, save_plot+'ratio_stations_nodes_{:d}{:}'
+    plot_barh(sn_ratio, color, save_plot + 'ratio_stations_nodes_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format)
-    plot_barh(sa_ratio, color, save_plot+'ratio_stations_area_{:d}{:}'
+    plot_barh(sa_ratio, color, save_plot + 'ratio_stations_area_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format,
               x_label=r'stations / $km^{2}$')
-    plot_barh(bpp_end, color, save_plot+'fmax_{:d}{:}'
+    plot_barh(bpp_end, color, save_plot + 'fmax_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format)
-    plot_barh(ba_improve, color, save_plot+'baimprove_{:d}{:}'
+    plot_barh(ba_improve, color, save_plot + 'baimprove_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format)
     st = ['primary', 'secondary', 'tertiary', 'residential']
     st_data = {city: list(ratio.values()) for city, ratio in st_ratio.items()}
     st_colors = ['darkblue', 'darkgreen', 'darkcyan', 'darkorange']
-    plot_barh_stacked(st_data, st, st_colors, save_plot+'ratio_st_{:d}{:}'
+    plot_barh_stacked(st_data, st, st_colors, save_plot + 'ratio_st_{:d}{:}'
                       .format(rev, minmode), plot_format=plot_format)
 
     plt.close('all')
     # plt.show()
+
