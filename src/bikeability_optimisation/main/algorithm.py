@@ -1,6 +1,7 @@
 """
 The core algorithm of the bikeability optimisation project.
 """
+import sys
 import h5py
 import json
 import osmnx as ox
@@ -45,14 +46,13 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
     :return: data array
     :rtype: numpy array
     """
-    # Create new sub folder for interim data
-    int_out_folder = output_folder+'interim/'
-    Path(int_out_folder).mkdir(parents=True, exist_ok=True)
-
     # Initial calculation
     print('Initial calculation started.')
     calc_trips(nkG, edge_dict, trips_dict)
     print('Initial calculation ended.')
+
+    print(sys.getsizeof(edge_dict))
+    print(sys.getsizeof(trips_dict))
 
     # Initialise lists
     total_cost = [0]
@@ -290,7 +290,7 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
         for edge, edge_info in edge_dict.items():
             edge_info['felt length'] *= 1 / edge_info['penalty']
             nkG.setWeight(edge[0], edge[1], edge_info['felt length'])
-
+    hf.close()
     # Calculate data
     core_algorithm(nkG=nkG, nkG_edited=nkG_edited, edge_dict=edge_dict,
                    trips_dict=trips_dict, nk2nx_nodes=nk2nx_nodes,
