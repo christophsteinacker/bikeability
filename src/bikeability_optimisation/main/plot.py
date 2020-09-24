@@ -374,7 +374,7 @@ def plot_used_nodes(save, G, trip_nbrs, stations, plot_folder,
     print('Maximal station usage: {}'.format(max_n))
 
     n_rel = {key: value for key, value in nodes.items()}
-    ns = [75 if n in stations else 0 for n in G.nodes()]
+    ns = [100 if n in stations else 0 for n in G.nodes()]
 
     for n in G.nodes():
         if n not in stations:
@@ -792,7 +792,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax1.set_ylim(0.0, 1.0)
     ax12.set_ylim(0.0, 1.0)
 
-    c_ba = 'C0'
+    c_ba = '#4363d8'
 
     ax1.plot(bpp_cut, ba[:end], c=c_ba, label='bikeability', lw=2.5)
     ax1.plot(bpp_now, ba_now, c=c_ba, ms=16, marker='D')
@@ -808,19 +808,19 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax1.yaxis.set_minor_locator(AutoMinorLocator())
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
 
-    c_cost = 'C8'
+    c_cost = '#808000'
 
     ax12.plot(bpp_cut, [x / total_cost[end] for x in total_cost[:end]],
               c=c_cost, label='total cost', lw=2.5)
     ax12.plot(bpp_now, cost_now, c=c_cost, ms=16, marker='s')
-    xmin, ymax = coord_transf(min(bpp_now, cost_x), cost_now,
+    xmin, ymax = coord_transf(bpp_now, cost_now,
                               xmax=1, xmin=0, ymax=1, ymin=0)
     ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_cost, ls='--', alpha=0.5)
     ax1.axhline(y=cost_now, xmax=1, xmin=xmin, c=c_cost, ls='--', alpha=0.5)
-    ax1.axhline(y=cost_y, xmax=xmax, xmin=0, c=c_cost, ls='--', alpha=0.5)
+    ax1.axhline(y=cost_y, xmax=1, xmin=xmin, c=c_cost, ls='--', alpha=0.5)
     # ax1.axvline(x=bpp[cut] / bpp[end], c='#999999', ls='--', alpha=0.7, lw=3)
 
-    ax12.set_ylabel('cost', fontsize=24, color=c_cost)
+    ax12.set_ylabel('normalised cost', fontsize=24, color=c_cost)
     ax12.tick_params(axis='y', labelsize=16, labelcolor=c_cost)
     ax12.yaxis.set_minor_locator(AutoMinorLocator())
 
@@ -871,8 +871,8 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax2.set_ylim(0.0, 1.0)
     ax22.set_ylim(0.0, 1.0)
 
-    c_nos = 'C1'
-    c_los = 'm'
+    c_nos = '#e6194B'
+    c_los = '#911eb4'
 
     p1, = ax2.plot(bpp_cut, los[:end], label='length', c=c_los, lw=2.5,
                    zorder=1)
@@ -924,9 +924,9 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax3.set_xlim(0.0, 1.0)
     ax3.set_ylim(0.0, 1.0)
 
-    c_st = {'primary': 'darkblue', 'secondary': 'darkgreen',
-            'tertiary': 'darkcyan', 'residential': 'darkorange',
-            'bike paths': 'gold'}
+    c_st = {'primary': '#000075', 'secondary': '#3cb44b',
+            'tertiary': '#469990', 'residential': '#f58231',
+            'bike paths': '#ffe119'}
     m_st = {'primary': 'p', 'secondary': 'p', 'tertiary': 'p',
             'residential': 'p', 'bike paths': 'P'}
 
@@ -979,7 +979,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
 
     # ax4.axvline(x=bpp[cut] / bpp[end], c='#999999', ls='--', alpha=0.7, lw=3)
 
-    ax4.set_xlabel('normalised fraction of bike paths', fontsize=24)
+    ax4.set_xlabel('fraction of bike paths', fontsize=24)
     ax4.set_ylabel('length', fontsize=24)
     if titles:
         ax4.set_title('Length of Bike Paths along Streets in {}'.format(city),
@@ -1384,7 +1384,7 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
 
     scale_x = calc_scale(base, dist_modes, saves, data_folder, mode)
 
-    colors = ['#000075', '#800000', '#469990']
+    colors = ['#469990', '#800080', '#0000ff']
     color = {m: colors[idx] for idx, m in enumerate(dist_modes)}
 
     ee = {}
@@ -1497,17 +1497,17 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
 
     cut = max(end.values())
     for dist_mode in dist_modes:
-        bpp_m = [x / bpp_c[dist_mode][cut] for x in bpp_c[dist_mode][:cut]]
+        # bpp_m = [x / bpp_c[dist_mode][cut] for x in bpp_c[dist_mode][:cut]]
         bpp_scaled = [x * scale_x[dist_mode] for x in bpp[dist_mode]]
-        ax1.plot(bpp_m, ba_c[dist_mode][:cut], color=color[dist_mode],
+        ax1.plot(bpp[dist_mode], ba[dist_mode], color=color[dist_mode],
                  label='{}'.format(dist_mode), lw=2.5)
         ax2.plot(bpp_scaled, ba[dist_mode], color=color[dist_mode],
                  label='{}'.format(dist_mode), lw=2.5)
         space = round(len(bpp[dist_mode]) / 25)
-        ax3.plot(bpp_m, nos_c[dist_mode][:cut], ms=16, marker='v',
+        ax3.plot(bpp[dist_mode], nos[dist_mode], ms=16, marker='v',
                  markevery=space,
                  color=color[dist_mode], lw=2.5)
-        ax32.plot(bpp_m, los_c[dist_mode][:cut], ms=16, marker='8',
+        ax32.plot(bpp[dist_mode], los[dist_mode], ms=16, marker='8',
                   markevery=space,
                   color=color[dist_mode], lw=2.5)
         ax3_hand[dist_mode] = mlines.Line2D([], [], color=color[dist_mode])
@@ -1604,6 +1604,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     sn_ratio = {}
     sa_ratio = {}
     ba_improve = {}
+    nos_improve = {}
+    los_improve = {}
     ba_y = {}
 
     for city in cities:
@@ -1618,7 +1620,11 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
         ba_improve[city] = ba_y[city] - data_ps['ba'][()]
         cost[city] = data_algo[mode]['cost'][()]
         nos[city] = data_algo[mode]['nos'][()]
+        nos_improve[city] = data_ps['nos'][()] - \
+                            data_algo[mode]['nos at comp'][()]
         los[city] = data_algo[mode]['los'][()]
+        los_improve[city] = data_ps['los'][()] - \
+                            data_algo[mode]['los at comp'][()]
         tfdt_min[city] = data_algo[mode]['tfdt min'][()]
         tfdt_max[city] = data_algo[mode]['tfdt max'][()]
         tfdt_rat[city] = tfdt_max[city] / tfdt_min[city]
@@ -1736,7 +1742,7 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
                                            reverse=True)}
     plot_barv(scale_x_bar, color, save_plot + 'scalefactor_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format, ymin=0, ymax=1,
-              xticks=False)
+              xticks=False, y_label='scaling factor')
     plot_barh(trdt_rat, color, save_plot + 'ratio_max_min_traveled_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format,
               x_label=r'$trdt_{max} / trdt_{min}$')
@@ -1747,11 +1753,24 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
               x_label=r'stations / $km^{2}$')
     plot_barh(bpp_end, color, save_plot + 'fmax_{:d}{:}'
               .format(rev, minmode), plot_format=plot_format)
-    plot_barh(ba_improve, color, save_plot + 'baimprove_{:d}{:}'
-              .format(rev, minmode), plot_format=plot_format)
+    ymax = ceil(max(ba_improve.values()) * 100) / 100.0
+    ba_improve_bar = {k: ba_improve[k] for k in scale_x_bar.keys()}
+    plot_barv(ba_improve_bar, color, save_plot + 'baimprove_{:d}{:}'
+              .format(rev, minmode), plot_format=plot_format, xticks=False,
+              y_label='improvement over P+S', ymin=0, ymax=ymax)
+    ymax = ceil(max(nos_improve.values()) * 100) / 100.0
+    nos_improve_bar = {k: nos_improve[k] for k in scale_x_bar.keys()}
+    plot_barv(nos_improve_bar, color, save_plot + 'nosimprove_{:d}{:}'
+              .format(rev, minmode), plot_format=plot_format, xticks=False,
+              y_label='improvement over P+S', ymin=0, ymax=ymax)
+    ymax = ceil(max(los_improve.values()) * 100) / 100.0
+    los_improve_bar = {k: los_improve[k] for k in scale_x_bar.keys()}
+    plot_barv(los_improve_bar, color, save_plot + 'losimprove_{:d}{:}'
+              .format(rev, minmode), plot_format=plot_format, xticks=False,
+              y_label='improvement over P+S', ymin=0, ymax=ymax)
     st = ['primary', 'secondary', 'tertiary', 'residential']
     st_data = {city: list(ratio.values()) for city, ratio in st_ratio.items()}
-    st_colors = ['darkblue', 'darkgreen', 'darkcyan', 'darkorange']
+    st_colors = ['#000075', '#3cb44b', '#469990', '#f58231']
     plot_barh_stacked(st_data, st, st_colors, save_plot + 'ratio_st_{:d}{:}'
                       .format(rev, minmode), plot_format=plot_format)
 

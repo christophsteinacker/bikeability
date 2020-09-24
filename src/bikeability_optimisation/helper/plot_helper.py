@@ -309,7 +309,8 @@ def plot_barh(data, colors, save, figsize=None, plot_format='png',
         y = y_pos[idx]
         if values[idx] > 0.05 * max_value:
             r, g, b, _ = color
-            text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+            text_color = 'white' if (r*0.299 + g*0.587 + b*0.114) < 0.25 \
+                else 'black'
             ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center',
                     va='center', color=text_color, fontsize=16)
         else:
@@ -328,7 +329,7 @@ def plot_barh(data, colors, save, figsize=None, plot_format='png',
 
 
 def plot_barh_stacked(data, stacks, colors, save, figsize=None,
-                      plot_format='png', title='', dpi=150):
+                      plot_format='png', title='', dpi=150, legend=False):
     if figsize is None:
         figsize = [16, 9]
 
@@ -350,13 +351,15 @@ def plot_barh_stacked(data, stacks, colors, save, figsize=None,
         xcenters = starts + widths / 2
 
         r, g, b, _ = color
-        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        text_color = 'white' if (r*0.299 + g*0.587 + b*0.114) < 0.25 \
+            else 'black'
         for y, (x, c) in enumerate(zip(xcenters, widths)):
             if c != 0.0:
                 ax.text(x, y, '{:3.2f}'.format(c), ha='center', va='center',
                         color=text_color)
-    ax.legend(ncol=len(stacks), bbox_to_anchor=(0, 1), loc='lower left',
-              fontsize='small')
+    if legend:
+        ax.legend(ncol=len(stacks), bbox_to_anchor=(0, 1), loc='lower left',
+                  fontsize='small')
     ax.set_title(title)
     plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
                 bbox_inches='tight')
@@ -378,7 +381,8 @@ def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
         y = values[idx] / 2
         x = x_pos[idx]
         r, g, b, _ = color
-        text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+        text_color = 'white' if (r * 0.299 + g * 0.587 + b * 0.114) < 0.25 \
+            else 'black'
         ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
                 color=text_color)
     if xticks:
@@ -420,11 +424,12 @@ def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
                 y = bottom[v_idx] + v / 2
                 x = x_pos[v_idx]
                 r, g, b, _ = color
-                text_color = 'white' if r * g * b < 0.5 else 'darkgrey'
+                text_color = 'white' if (r*0.299 + g*0.587 + b*0.114) < 0.25 \
+                    else 'black'
                 ax.text(x, y, '{:3.2f}'.format(v), ha='center',
                         va='center', color=text_color, fontsize=16)
         bottom = [sum(x) for x in zip(bottom, values[idx])]
-        print(stacks[idx], values[idx])
+        # print(stacks[idx], values[idx])
 
     ax.set_ylabel(ylabel, fontsize=24)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
