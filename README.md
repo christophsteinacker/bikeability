@@ -1,9 +1,9 @@
-# bikeability-optimisation
+# Bikeability Optimisation
 Master thesis project.
 
 ### Short Explanation
 
-This pyhton package is designed to imporve the bikeability of cities, therefore it uses bike sharing data to build a demand drive bike path network.
+This pyhton package is designed to improve the bikeability of cities, therefore it uses bike sharing data to build a demand drive bike path network.
 
 ### Data Structure
 
