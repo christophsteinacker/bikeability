@@ -1,11 +1,11 @@
 """
 This module includes all necessary functions for the main algorithm.
 """
-from bikeability_optimisation.helper.logger_helper import log_to_file
 import networkit as nk
 import networkx as nx
 import numpy as np
 import time
+from .logger_helper import log_to_file
 
 
 def get_street_type(G, edge, nk2nx=None, multi=False):

@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex
 from math import ceil, cos, asin, sqrt, pi
 from shapely.geometry import Point, Polygon
-from bikeability_optimisation.helper.algorithm_helper import get_street_type
-from bikeability_optimisation.helper.algorithm_helper import calc_current_state
+from .algorithm_helper import get_street_type
+from .algorithm_helper import calc_current_state
 
 
 def read_csv(path, delim=','):
@@ -44,6 +44,19 @@ def write_csv(df, path):
 
 
 def distance(lat1, lon1, lat2, lon2):
+    """
+    Calcuate the distance between two lat/long points in meters.
+    :param lat1: Latitude of point 1
+    :type lat1: float
+    :param lon1: Longitude of pint 1
+    :type lon1: float
+    :param lat2: Latitude of point 2
+    :type lat2: float
+    :param lon2: Longitude of pint 2
+    :type lon2: float
+    :return: Distance in meters
+    :rtype: float
+    """
     p = pi/180
     a = 0.5 - cos((lat2-lat1)*p)/2 + cos(lat1*p) * cos(lat2*p) * \
         (1-cos((lon2-lon1)*p))/2
@@ -305,6 +318,13 @@ def get_polygon_from_bbox(bbox):
 
 
 def get_bbox_from_polygon(polygon):
+    """
+    Returns bbox from given polygon.
+    :param polygon: Polygon
+    :type polygon: Shapely Polygon
+    :return: bbox [north, south, east, west]
+    :rtype: list
+    """
     x, y = polygon.exterior.coords.xy
     points = [(i, y[j]) for j, i in enumerate(x)]
 
@@ -348,6 +368,15 @@ def drop_invalid_values(csv, column, values, save=False, save_path='',
 
 
 def consolidate_nodes(G, tol):
+    """
+    Consolidates intersections of graph g with given tolerance in meters.
+    :param G: Graph to consolidate intersections in
+    :type G: networkx (Multi)(Di)Graph
+    :param tol: Tolerance for consolidation in meters
+    :type tol: float or int
+    :return: Graph with consolidated intersections
+    :rtype same as param G
+    """
     H = ox.project_graph(G, to_crs='epsg:2955')
     H = ox.consolidate_intersections(H, tolerance=tol, rebuild_graph=True,
                                      dead_ends=True, reconnect_edges=True)
@@ -518,6 +547,15 @@ def save_map(G, save_path, save_name):
 
 
 def data_to_matrix(stations, trips):
+    """
+    Converts given od demand into origin-destination matrix.
+    :param stations: Stations of the demand
+    :type stations: list
+    :param trips: Demand
+    :type trips: dict
+    :return: OD Matrix
+    :rtype: pandas dataframe
+    """
     df = pd.DataFrame(stations, columns=['station'])
     for station in stations:
         df[station] = [np.nan for x in range(len(stations))]
@@ -529,6 +567,19 @@ def data_to_matrix(stations, trips):
 
 
 def matrix_to_graph(df, rename_columns=None, data=True):
+    """
+    Turns OD Matrix to graph.
+    :param df: OD Matrix
+    :type df: pandas dataframe
+    :param rename_columns: If columns of the df should be renamed set
+    appropriate dict here.
+    :type rename_columns: dict
+    :param data: If metadata of the demand (degree, indegree, outdegree,
+    imbalance) should be returned or not.
+    :type data: bool
+    :return: Graph and (if wanted) meta data
+    :rtype: networkx graph and list, list, list, list
+    """
     if rename_columns is None:
         rename_columns = {'station': 'source', 'level_1': 'target', 0: 'trips'}
     df.values[[np.arange(len(df))] * 2] = np.nan
@@ -562,6 +613,13 @@ def matrix_to_graph(df, rename_columns=None, data=True):
 
 
 def sort_clustering(G):
+    """
+    Sorts nodes of G by clustering coefficient.
+    :param G: Graph to sort
+    :type G: networkx graph
+    :return: List of nodes sorted by clustering coefficient.
+    :rtype: list
+    """
     clustering = nx.clustering(G, weight='trips')
     clustering = {k: v for k, v in
                   sorted(clustering.items(), key=lambda item: item[1])}
@@ -569,6 +627,21 @@ def sort_clustering(G):
 
 
 def get_communities(requests, requests_result, stations, G):
+    """
+    Get communities of the of the demand in the city. The requests should
+    consists the smallest possible administrative level for the city (e.g.
+    districts or boroughs).
+    :param requests: Nominatim requests for the areas of the city
+    :type requests: list of str
+    :param requests_result: Nominatim which_results
+    :type requests_result: list of int
+    :param stations: Stations of the demand
+    :type stations: list
+    :param G: Graph of the city
+    :type G: networkx graph
+    :return: Two dataframes one keyed by community the other by station.
+    :rtype: pandas dataframes
+    """
     gdf = ox.gdf_from_places(requests, which_results=requests_result)
 
     communities = [x.split(',')[0] for x in requests]
@@ -598,6 +671,17 @@ def get_communities(requests, requests_result, stations, G):
 
 
 def calc_average_trip_len(nxG, trip_nbrs, penalties=True):
+    """
+    Calculate the average trip length of given trips in given graph.
+    :param nxG: Graph to calculate trips in
+    :type nxG: networkx graph
+    :param trip_nbrs: Trips
+    :type trip_nbrs: dict
+    :param penalties: If penalties should be applied or not
+    :type penalties: bool
+    :return: Average trip length in meters
+    :rtype: float
+    """
     if penalties:
         bike_paths = []
     else:

@@ -13,10 +13,11 @@ from pyproj import Proj, transform
 from geopy.distance import distance
 from scipy import stats
 from collections import Counter
-from bikeability_optimisation.helper.plot_helper import *
-from bikeability_optimisation.helper.data_helper import \
-    get_polygon_from_json, get_polygons_from_json, get_bbox_from_polygon
-from bikeability_optimisation.helper.algorithm_helper import calc_current_state
+from ..helper.plot_helper import *
+#from bikeability_optimisation.helper.plot_helper import *
+from ..helper.data_helper import get_polygon_from_json, \
+    get_polygons_from_json, get_bbox_from_polygon
+from ..helper.algorithm_helper import calc_current_state
 
 
 def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',

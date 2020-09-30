@@ -1,9 +1,8 @@
 import h5py
-from bikeability_optimisation.helper.data_helper import *
-from bikeability_optimisation.main.plot import plot_matrix, plot_station_degree,\
-    plot_used_area
 from pathlib import Path
 from pyproj import Proj, transform
+from ..helper.data_helper import *
+from .plot import plot_matrix, plot_station_degree, plot_used_area
 
 
 def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
@@ -12,6 +11,53 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
               plot_bbox_size=None, by_city=True, plot_city_size=None,
               by_polygon=True, plot_size=None, cached_graph=False,
               cached_graph_folder=None, cached_graph_name=None):
+    """
+    Prepares the data of a city for the algorithm and saves it to the
+    desired location.
+    :param city_name: Name of the city
+    :type city_name: str
+    :param save_name: Savename of the city
+    :type save_name: str
+    :param input_csv: Path to the trip csv
+    :type input_csv: str
+    :param output_folder: Folder for the data output
+    :type output_folder: str
+    :param polygon_json: Path to the json of the polygon
+    :type polygon_json: str
+    :param plot_folder: Folder for the plots
+    :type plot_folder: str
+    :param nominatim_name: Nominatim name of the city
+    :type nominatim_name: str
+    :param nominatim_result: results position of the city for the given name
+    :type nominatim_result: int
+    :param trunk: If trunks should be included or not
+    :type trunk: bool
+    :param consolidate: If intersections should be consolidated
+    :type consolidate: bool
+    :param tol: Tolerance of consolidation in meters
+    :type tol: float
+    :param by_bbox: If graph should be downloaded by the bbox surrounding the
+    trips
+    :type by_bbox: bool
+    :param plot_bbox_size: plot size of the bbox plots [width, height]
+    :type plot_bbox_size: list
+    :param by_city: If graph should be downloaded by the nominatim name
+    :type by_city: bool
+    :param plot_city_size: plot size of the nominatim name plots [width,
+    height]
+    :type plot_city_size: list
+    :param by_polygon: If graph should be downloaded by the given polygon
+    :type  by_polygon: bool
+    :param plot_size: plot size of the polygon plots [width, height]
+    :type plot_size: list
+    :param cached_graph: If a previously downloaded graph should be used.
+    :type cached_graph: bool
+    :param cached_graph_folder: Folder of the downloaded graph.
+    :type cached_graph_folder: str
+    :param cached_graph_name: Name of the downloaded graph.
+    :type cached_graph_name: str
+    :return: None
+    """
     if nominatim_name is None:
         nominatim_name = city_name
     if plot_size is None:
@@ -142,6 +188,44 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
                  overlay=False, overlay_ploy=None, communities=False,
                  comm_requests=None, comm_requests_result=None,
                  plot_format='png', dpi=150):
+    """
+    Analyses the demand data of the city and saves the results as hdf5. If you
+    are interested in the communities inside the demand data, provide the
+    smallest possible administrative level for the city (e.g. districts or
+    boroughs).
+    :param save: Savename of the city.
+    :type save: str
+    :param city: Name of the city
+    :type city: str
+    :param input_folder: Folder of the input data for the algorithm
+    :type input_folder: str
+    :param output_folder: Folder for the output of the analysed data
+    :type output_folder: str
+    :param plot_folder: Folder for the plots.
+    :type plot_folder: str
+    :param cluster: If clustering coefficient of the stations should be
+    calculated and used as sorting.
+    :type cluster: bool
+    :param bg_map: Background map for graph plots.
+    :type bg_map: bool
+    :param bg_polygon: Path to polygon json of the background
+    :type bg_polygon: str
+    :param overlay: Overlay
+    :type overlay: bool
+    :param overlay_ploy: Path to polygon json of the overlay
+    :type overlay_ploy: str
+    :param communities: Calculate communities
+    :type communities: bool
+    :param comm_requests: Nominatim requests for the areas of the city
+    :type comm_requests: list
+    :param comm_requests_result: Nominatim which_results
+    :type comm_requests_result: list
+    :param plot_format: File format for the plots
+    :type plot_format: str
+    :param dpi: DPI of the plots
+    :type dpi: int
+    :return: None
+    """
     plt.rcdefaults()
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     Path(plot_folder).mkdir(parents=True, exist_ok=True)

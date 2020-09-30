@@ -1,26 +1,23 @@
 """
 This module includes all necessary functions for the plotting functionality.
 """
-from math import ceil, floor, log10
 import h5py
 import pyproj
 import numpy as np
 import networkx as nx
 import osmnx as ox
+import shapely.ops as ops
 import cartopy.crs as ccrs
 import cartopy.geodesic as cgeo
+from math import ceil, floor, log10
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator, MaxNLocator
 from matplotlib.colors import to_rgba, LogNorm
-import shapely.ops as ops
-from bikeability_optimisation.helper.algorithm_helper import \
-    get_street_type_cleaned, get_street_length
-from bikeability_optimisation.helper.data_helper import get_polygon_from_bbox,\
-    get_bbox_from_polygon
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from functools import partial
 from copy import deepcopy
-import contextily as ctx
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from .algorithm_helper import get_street_type_cleaned, get_street_length
+
 
 
 def magnitude(x):
@@ -501,6 +498,7 @@ def plot_matrix(city, df, plot_folder, save, cmap=None, figsize=None,
                    labelbottom=False)
     ax.tick_params(axis='y', which='both', left=False, right=False,
                    labelleft=False)
+    cax.tick_params(axis='x', labelsize=16)
     cax.set_xlabel('cyclists per trip', fontsize=18)
 
     # ax.set_title('Trips in {}'.format(city), fontsize='x-large')
