@@ -1,9 +1,9 @@
-# Bikeability Optimisation
+# Data-drive Optimisation of Bike Networks
 Master thesis project.
 
 ### Short Explanation
 
-This pyhton package is designed to improve the bikeability of cities, therefore it uses bike sharing data to build a demand drive bike path network.
+This pyhton package is designed to help improving the bikeability of cities. Therefore it combines a route choice model for the cyclists, based on street size and presence or absence of bike paths along streets, OpenStreetMap data and the cyclists demand provided by bike-sharing services. The street network provided by the OpenStreetMap community is described by graphs. To estimate the origin-destination demand I utilise data provided by bike-sharing services such as Call a Bike.
 
 ### Data Structure
 
