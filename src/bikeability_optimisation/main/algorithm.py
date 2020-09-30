@@ -1,7 +1,6 @@
 """
 The core algorithm of the bikeability optimisation project.
 """
-import sys
 import h5py
 import json
 import osmnx as ox
@@ -13,7 +12,7 @@ from ..helper.logger_helper import *
 
 def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
                    nk2nx_edges, street_cost, starttime, logpath, output_folder,
-                   save, minmode, rev):
+                   city, save, minmode, rev):
     """
     For a detailed explanation of the algorithm please look at the
     documentation on github.
@@ -37,6 +36,8 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
     :type logpath: str
     :param output_folder: Folder where the output should be stored.
     :type output_folder: str
+    :param city: Name of the city
+    :type city: str
     :param save: Save name of the network
     :type save: str
     :param minmode: Which minmode should be chosen
@@ -50,9 +51,6 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
     print('Initial calculation started.')
     calc_trips(nkG, edge_dict, trips_dict)
     print('Initial calculation ended.')
-
-    print(sys.getsizeof(edge_dict))
-    print(sys.getsizeof(trips_dict))
 
     # Initialise lists
     total_cost = [0]
@@ -122,8 +120,8 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
         next_log = log_at[log_idx]
         if (rev and bike_path_perc[-1] > next_log) ^ \
                 (not rev and bike_path_perc[-1] < next_log):
-            log_to_file(file=logpath, txt='Reached {0:3.2f} BLP'
-                        .format(next_log), stamptime=time.localtime(),
+            log_to_file(file=logpath, txt='{0:}: reached {1:3.2f} BLP'
+                        .format(city, next_log), stamptime=time.localtime(),
                         start=starttime, end=time.time(), stamp=True,
                         difference=True)
             loc = output_folder+'{0:}_data_mode_{1:d}{2:}.hdf5'\
@@ -205,8 +203,6 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
 
     nxG = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
                           node_type=int)
-    """nxG = nx.read_graphml(input_folder+'{}.graphml'.format(save),
-                          node_type=int)"""
     nxG = nx.Graph(nxG.to_undirected())
     print('Simulating "{}" with {} nodes and {} edges.'
           .format(city, len(nxG.nodes), len(nxG.edges)))
@@ -296,7 +292,7 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
                    trips_dict=trips_dict, nk2nx_nodes=nk2nx_nodes,
                    nk2nx_edges=nk2nx_edges, street_cost=street_cost,
                    starttime=starttime, logpath=logpath,
-                   output_folder=output_folder, save=save,
+                   output_folder=output_folder, city=city, save=save,
                    minmode=minmode, rev=rev)
 
     # Print computation time to console and write it to the log.
