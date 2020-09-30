@@ -1,1 +1,1 @@
-Cleaned data sorted in city flders will be placed here by the data cleaning scripts.
+For Hamburg I use data provided by Call a Bike by Deutsche Bahn AG (https://data.deutschebahn.com/dataset/data-call-a-bike) (License: CC BY 4.0) and for Oslo from Oslo Bysykkel (https://oslobysykkel.no/en/open-data/historical) (License: NLOD 2.0). Be aware, the data is already cleaned, both cities do not provide the data in this exact format.
