@@ -9,14 +9,14 @@ from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
 from pathlib import Path
 import matplotlib.lines as mlines
 import osmnx as ox
+import contextily as ctx
 from pyproj import Proj, transform
 from geopy.distance import distance
 from scipy import stats
 from collections import Counter
 from ..helper.plot_helper import *
-#from bikeability_optimisation.helper.plot_helper import *
 from ..helper.data_helper import get_polygon_from_json, \
-    get_polygons_from_json, get_bbox_from_polygon
+    get_polygons_from_json, get_bbox_from_polygon, get_polygon_from_bbox
 from ..helper.algorithm_helper import calc_current_state
 
 
@@ -1233,7 +1233,7 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
 def plot_city(city, save, polygon_folder, input_folder, output_folder,
               comp_folder, plot_folder, modes, cut=True, correct_area=False,
               comp_modes=False, bike_paths=None, plot_evo=False,
-              evo_for=None, plot_format='png'):
+              evo_for=None, titles=False, legends=True, plot_format='png'):
     if evo_for is None:
         evo_for = [(False, 1), (False, 3)]
 
@@ -1334,7 +1334,7 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
                       nxG_calc=nxG_calc, nxG_plot=nxG_plot, stations=stations,
                       trip_nbrs=trip_nbrs, mode=m, end=end, evo=evo,
                       hf_group=sbgrp_algo, plot_folder=plot_folder,
-                      plot_format=plot_format)
+                      plot_format=plot_format, titles=titles, legends=legends)
 
     grp_ps = hf_comp.create_group('p+s')
     grp_ps['bpp'] = bpp_now
@@ -1573,8 +1573,8 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
 
 
 def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
-                   scale_x=None, base_city=None, figsize=None,
-                   plot_format='png'):
+                   scale_x=None, base_city=None, titles=False, legends=False,
+                   figsize=None, plot_format='png'):
     if scale_x is None:
         scale_x = {city: 1 for city in cities}
     if base_city is None:
@@ -1639,7 +1639,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     fig1, ax1 = plt.subplots(dpi=150, figsize=figsize)
     ax1.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax1.set_ylabel('bikeability', fontsize=24)
-    # ax1.set_title('Comparison of Bikeabilities', fontsize=14)
+    if titles:
+        ax1.set_title('Comparison of Bikeabilities', fontsize=14)
     ax1.tick_params(axis='x', labelsize=16)
     ax1.tick_params(axis='y', labelsize=16)
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1650,7 +1651,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     fig2, ax2 = plt.subplots(dpi=150, figsize=figsize)
     ax2.set_xlabel('scaled normalised fraction of bike paths', fontsize=24)
     ax2.set_ylabel('bikeability', fontsize=24)
-    # ax2.set_title('Comparison of Scaled Bikeabilities', fontsize=14)
+    if titles:
+        ax2.set_title('Comparison of Scaled Bikeabilities', fontsize=14)
     ax2.tick_params(axis='x', labelsize=16)
     ax2.tick_params(axis='y', labelsize=16)
     ax2.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1661,7 +1663,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     fig3, ax3 = plt.subplots(dpi=150, figsize=figsize)
     ax3.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax3.set_ylabel('integrated bikeability', fontsize=24)
-    # ax3.set_title('Comparison of Integrated Bikeabilities', fontsize=14)
+    if titles:
+        ax3.set_title('Comparison of Integrated Bikeabilities', fontsize=14)
     ax3.tick_params(axis='x', labelsize=16)
     ax3.tick_params(axis='y', labelsize=16)
     ax3.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1683,7 +1686,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax42.tick_params(axis='y', labelsize=16)
     ax42.yaxis.set_minor_locator(AutoMinorLocator())
 
-    # ax4.set_title('Comaprison of Trips and Length on Street', fontsize=14)
+    if titles:
+        ax4.set_title('Comaprison of Trips and Length on Street', fontsize=14)
     ax4.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax4.tick_params(axis='x', labelsize=16)
     ax4.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1708,10 +1712,12 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
                   color=color[city], lw=2.5)
         ax4_hand[city] = mlines.Line2D([], [], color=color[city])
 
-    # l_keys = [l_key for city, l_key in ax4_hand.items()]
-    # l_cities = [city for city, l_key in ax4_hand.items()]
-    l_keys = []
-    l_cities = []
+    if legends:
+        l_keys = [l_key for city, l_key in ax4_hand.items()]
+        l_cities = [city for city, l_key in ax4_hand.items()]
+    else:
+        l_keys = []
+        l_cities = []
     l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='v',
                                 label='cyclists'))
     l_cities.append('cyclists')
@@ -1719,9 +1725,10 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
                                 label='length'))
     l_cities.append('length')
 
-    # ax1.legend(loc='lower right')
-    # ax2.legend(loc='lower right')
-    # ax3.legend(loc='lower right')
+    if legends:
+        ax1.legend(loc='lower right')
+        ax2.legend(loc='lower right')
+        ax3.legend(loc='lower right')
     ax4.legend(l_keys, l_cities, numpoints=1,
                handler_map={tuple: HandlerTuple(ndivide=None)}, fontsize=24)
 
@@ -1773,7 +1780,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     st_data = {city: list(ratio.values()) for city, ratio in st_ratio.items()}
     st_colors = ['#000075', '#3cb44b', '#469990', '#f58231']
     plot_barh_stacked(st_data, st, st_colors, save_plot + 'ratio_st_{:d}{:}'
-                      .format(rev, minmode), plot_format=plot_format)
+                      .format(rev, minmode), plot_format=plot_format,
+                      legend=legends)
 
     plt.close('all')
     # plt.show()
