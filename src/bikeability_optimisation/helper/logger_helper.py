@@ -22,18 +22,25 @@ def get_duration(st, et):
     return int(td.days), td.seconds//3600, td.seconds//60 % 60, td.seconds % 60
 
 
-def log_to_file(file, txt, stamptime=time.localtime(), start=None, end=None,
-                stamp=True, difference=False):
+def log_to_file(file, txt, stamptime=time.localtime(), start=None,
+                end=None, stamp=True, difference=False):
     """
     Logs to file with stamp time, duration and message.
-    :param file:
-    :param txt:
-    :param stamptime:
-    :param start:
-    :param end:
-    :param stamp:
-    :param difference:
-    :return:
+    :param file: Path of the logfile
+    :type file: str
+    :param txt: Message to log
+    :type txt: str
+    :param stamptime: Time of log
+    :type stamptime: time.struct_time
+    :param start: Start time to calculate a duration
+    :type start: float or time.struct_time
+    :param end: End time to calculate a duration
+    :type end: float or time.struct_time
+    :param stamp: Log stamp time
+    :type stamp: bool
+    :param difference: Log duration
+    :type difference: bool
+    :return: None
     """
     if difference and not stamp:
         dur = get_duration(start, end)

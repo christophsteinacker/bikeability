@@ -1,0 +1,16 @@
+30 Sep 2020 14:26:51: Started optimising Oslo with minmode 2 and reversed True.
+30 Sep 2020 14:27:41: Reached 0.01 BLP after 0d00h00m49s.
+30 Sep 2020 14:28:37: Reached 0.03 BLP after 0d00h01m46s.
+30 Sep 2020 14:30:14: Reached 0.05 BLP after 0d00h03m22s.
+30 Sep 2020 14:33:18: Reached 0.10 BLP after 0d00h06m27s.
+30 Sep 2020 14:35:39: Reached 0.15 BLP after 0d00h08m47s.
+30 Sep 2020 14:38:14: Reached 0.20 BLP after 0d00h11m23s.
+30 Sep 2020 14:41:06: Reached 0.25 BLP after 0d00h14m14s.
+30 Sep 2020 14:43:43: Reached 0.30 BLP after 0d00h16m52s.
+30 Sep 2020 14:48:33: Reached 0.40 BLP after 0d00h21m41s.
+30 Sep 2020 14:53:57: Reached 0.50 BLP after 0d00h27m05s.
+30 Sep 2020 14:58:43: Reached 0.60 BLP after 0d00h31m51s.
+30 Sep 2020 15:02:33: Reached 0.70 BLP after 0d00h35m41s.
+30 Sep 2020 15:06:40: Reached 0.80 BLP after 0d00h39m49s.
+30 Sep 2020 15:10:49: Reached 0.90 BLP after 0d00h43m57s.
+30 Sep 2020 15:14:17: Finished optimising Oslo after 0d00h47m25s.

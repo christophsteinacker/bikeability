@@ -1,0 +1,16 @@
+30 Sep 2020 15:19:18: Started optimising Hamburg with minmode 1 and reversed True.
+30 Sep 2020 15:21:05: Hamburg: reached 0.01 BLP after 0d00h01m46s.
+30 Sep 2020 15:23:17: Hamburg: reached 0.03 BLP after 0d00h03m58s.
+30 Sep 2020 15:27:18: Hamburg: reached 0.05 BLP after 0d00h07m59s.
+30 Sep 2020 15:35:39: Hamburg: reached 0.10 BLP after 0d00h16m20s.
+30 Sep 2020 15:43:39: Hamburg: reached 0.15 BLP after 0d00h24m20s.
+30 Sep 2020 15:51:08: Hamburg: reached 0.20 BLP after 0d00h31m49s.
+30 Sep 2020 15:59:36: Hamburg: reached 0.25 BLP after 0d00h40m17s.
+30 Sep 2020 16:07:14: Hamburg: reached 0.30 BLP after 0d00h47m55s.
+30 Sep 2020 16:21:30: Hamburg: reached 0.40 BLP after 0d01h02m11s.
+30 Sep 2020 16:33:52: Hamburg: reached 0.50 BLP after 0d01h14m33s.
+30 Sep 2020 16:45:45: Hamburg: reached 0.60 BLP after 0d01h26m26s.
+30 Sep 2020 16:58:39: Hamburg: reached 0.70 BLP after 0d01h39m20s.
+30 Sep 2020 17:10:06: Hamburg: reached 0.80 BLP after 0d01h50m47s.
+30 Sep 2020 17:21:59: Hamburg: reached 0.90 BLP after 0d02h02m40s.
+30 Sep 2020 17:33:13: Finished optimising Hamburg after 0d02h13m55s.

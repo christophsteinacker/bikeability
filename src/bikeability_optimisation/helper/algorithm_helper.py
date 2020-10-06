@@ -1,14 +1,14 @@
 """
 This module includes all necessary functions for the main algorithm.
 """
-from bikeability_optimisation.helper.logger_helper import log_to_file
 import networkit as nk
 import networkx as nx
 import numpy as np
 import time
+from .logger_helper import log_to_file
 
 
-def get_street_type(G, edge, nk2nx=None, directed=False):
+def get_street_type(G, edge, nk2nx=None, multi=False):
     """
     Returns the street type of the edge in G. If 'highway' in G is al list,
     return first entry.
@@ -20,8 +20,8 @@ def get_street_type(G, edge, nk2nx=None, directed=False):
     :type edge: tuple of integers
     :param nk2nx: edge map form networkit graph to networkx graph.
     :type nk2nx: dict
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: Street type.
     :rtype: str
     """
@@ -30,7 +30,7 @@ def get_street_type(G, edge, nk2nx=None, directed=False):
             edge = nk2nx[edge]
         else:
             edge = nk2nx[(edge[1], edge[0])]
-    if directed:
+    if multi:
         street_type = G[edge[0]][edge[1]][0]['highway']
     else:
         street_type = G[edge[0]][edge[1]]['highway']
@@ -40,7 +40,7 @@ def get_street_type(G, edge, nk2nx=None, directed=False):
         return street_type[0]
 
 
-def get_street_type_cleaned(G, edge, nk2nx=None, directed=False):
+def get_street_type_cleaned(G, edge, nk2nx=None, multi=False):
     """
     Returns the street type of the edge. Street types are reduced to
     primary, secondary, tertiary and residential.
@@ -52,12 +52,12 @@ def get_street_type_cleaned(G, edge, nk2nx=None, directed=False):
     :type edge: tuple of integers
     :param nk2nx: edge map form networkit graph to networkx graph.
     :type nk2nx: dict
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: Street type·
     :rtype: str
     """
-    st = get_street_type(G, edge, nk2nx, directed=directed)
+    st = get_street_type(G, edge, nk2nx, multi=multi)
     if st in ['primary', 'primary_link', 'trunk', 'trunk_link']:
         return 'primary'
     elif st in ['secondary', 'secondary_link']:
@@ -68,40 +68,40 @@ def get_street_type_cleaned(G, edge, nk2nx=None, directed=False):
         return 'residential'
 
 
-def get_all_street_types(G, directed=False):
+def get_all_street_types(G, multi=False):
     """
     Returns all street types appearing in G.
     :param G: Graph.
     :type G: networkx graph.
-    :param directed: Set True if G is directed
-    :type directed: bool
+    :param multi: Set True if G is a MultiGraph
+    :type multi: bool
     :return: List of all street types.
     :rtype: list of str
     """
     street_types = set()
     for edge in G.edges():
-        street_types.add(get_street_type(G, edge, directed=directed))
+        street_types.add(get_street_type(G, edge, multi=multi))
     return list(street_types)
 
 
-def get_all_street_types_cleaned(G, directed=False):
+def get_all_street_types_cleaned(G, multi=False):
     """
     Returns all street types appearing in G. Street types are reduced to
     primary, secondary, tertiary and residential.
     :param G: Graph.
     :type G: networkx graph.
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: List of all street types.
     :rtype: list of str
     """
     street_types_cleaned = set()
     for edge in G.edges():
-        street_types_cleaned.add(get_street_type(G, edge, directed=directed))
+        street_types_cleaned.add(get_street_type(G, edge, multi=multi))
     return list(street_types_cleaned)
 
 
-def get_speed_limit(G, edge, nk2nx=None, directed=False):
+def get_speed_limit(G, edge, nk2nx=None, multi=False):
     """
     Returns speed limit of the edge in G.
     :param G: Graph.
@@ -112,8 +112,8 @@ def get_speed_limit(G, edge, nk2nx=None, directed=False):
     :type edge: tuple of integers
     :param nk2nx: edge map form networkit graph to networkx graph.
     :type nk2nx: dict
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: Speed limit.
     :rtype: float
     """
@@ -123,7 +123,7 @@ def get_speed_limit(G, edge, nk2nx=None, directed=False):
         else:
             edge = nk2nx[(edge[1], edge[0])]
     speed_limit = 50
-    if directed:
+    if multi:
         if 'maxspeed' in G[edge[0]][edge[1]]:
             speed_limit = G[edge[0]][edge[1]][0]['maxspeed']
     else:
@@ -139,7 +139,7 @@ def get_speed_limit(G, edge, nk2nx=None, directed=False):
         return 50
 
 
-def get_street_length(G, edge, nk2nx=None, directed=False):
+def get_street_length(G, edge, nk2nx=None, multi=False):
     """
     Returns the length of the edge in G.
     :param G: Graph.
@@ -150,8 +150,8 @@ def get_street_length(G, edge, nk2nx=None, directed=False):
     :type edge: tuple of integers
     :param nk2nx: edge map form networkit graph to networkx graph.
     :type nk2nx: dict
-    :param directed: Set true if G is directed
-    :type directed: bool
+    :param multi: Set true if G is a MultiGraph
+    :type multi: bool
     :return: Length of edge.
     :rtype: float
     """
@@ -160,7 +160,7 @@ def get_street_length(G, edge, nk2nx=None, directed=False):
             edge = nk2nx[edge]
         else:
             edge = nk2nx[(edge[1], edge[0])]
-    if directed:
+    if multi:
         length = G[edge[0]][edge[1]][0]['length']
     else:
         length = G[edge[0]][edge[1]]['length']
@@ -273,6 +273,19 @@ def get_minimal_loaded_edge(edge_dict, trips_dict, minmode=0, rev=False):
             edges_trip_length[edge] = np.nan_to_num(np.average(length))
         edges_load = {edge: edge_info['load'] * edges_trip_length[edge]
                       for edge, edge_info in edges.items()}
+    elif minmode == 3:
+        # load weighted by penalty
+        if rev:
+            edges_load = {edge: (edge_info['load'] *
+                                 (1 / edge_info['penalty']))
+                                - edge_info['real length']
+                          for edge, edge_info in edges.items()}
+        else:
+            edges_load = {edge: (edge_info['load'] * edge_info['penalty']) -
+                                edge_info['real length']
+                          for edge, edge_info in edges.items()}
+        if min(edges_load.values()) > 0:
+            edges_load = {}
     else:
         print('Minmode has to be chosen. Aborting.')
         edges_load = {}
@@ -567,7 +580,7 @@ def get_all_shortest_paths(G, source):
     """
     d = nk.distance.Dijkstra(G, source, storePaths=True)
     d.run()
-    shortest_paths = {tgt: d.getPath(tgt) for tgt in list(G.nodes())}
+    shortest_paths = {tgt: d.getPath(tgt) for tgt in list(G.iterNodes())}
     return shortest_paths
 
 
@@ -578,7 +591,7 @@ def remove_isolated_nodes(nkG):
     :type nkG: networkit graph.
     :return: None
     """
-    isolated_nodes = [n for n in nkG.nodes() if nkG.isIsolated(n)]
+    isolated_nodes = [n for n in nkG.iterNodes() if nkG.isIsolated(n)]
     for n in isolated_nodes:
         nkG.removeNode(n)
 
@@ -686,3 +699,70 @@ def save_data(path, data, logfile, message):
     log_to_file(logfile, message, stamptime=time.localtime(), stamp=True,
                 difference=False)
     np.save(path, data)
+
+
+def calc_current_state(nxG, trip_nbrs, bike_paths=None):
+    """
+    Calculates the data for the current bike path situation. If no bike
+    paths are provided all primary and secondary roads will be assigned with a
+    bike path.
+    :param nxG: Street graph to calculate in.
+    :param trip_nbrs: Number of trips as used for the main algorithm.
+    :param bike_paths: List of edges which hav a bike path.
+    :return: Data structured as from the main algorithm.
+    :rtype: np.array
+    """
+    if bike_paths is None:
+        stypes = ['primary', 'secondary']
+        bike_paths = [e for e in nxG.edges() if
+                      get_street_type_cleaned(nxG, e, multi=False) in stypes]
+    # All street types in network
+    street_types = get_all_street_types_cleaned(nxG, multi=False)
+    # Add bike paths
+    len_on_type = {t: 0 for t in street_types}
+    len_on_type['primary'] = 0
+    len_on_type['bike path'] = 0
+
+    # Set penalties for different street types
+    penalties = {'primary': 7, 'secondary': 2.4, 'tertiary': 1.4,
+                 'residential': 1.1}
+
+    # Set cost for different street types
+    street_cost = {'primary': 1, 'secondary': 1, 'tertiary': 1,
+                   'residential': 1}
+
+    trips_dict = {t_id: {'nbr of trips': nbr_of_trips, 'nodes': [],
+                         'edges': [], 'length real': 0, 'length felt': 0,
+                         'real length on types': len_on_type,
+                         'felt length on types': len_on_type,
+                         'on street': False}
+                  for t_id, nbr_of_trips in trip_nbrs.items()}
+    edge_dict = {edge: {'felt length': get_street_length(nxG, edge),
+                        'real length': get_street_length(nxG, edge),
+                        'street type': get_street_type_cleaned(nxG, edge),
+                        'penalty': penalties[get_street_type_cleaned(nxG, edge)],
+                        'speed limit': get_speed_limit(nxG, edge),
+                        'bike path': True, 'load': 0, 'trips': []}
+                 for edge in nxG.edges()}
+
+    for edge, edge_info in edge_dict.items():
+        if edge not in bike_paths:
+            edge_info['bike path'] = False
+            edge_info['felt length'] *= edge_info['penalty']
+            nxG[edge[0]][edge[1]]['length'] *= edge_info['penalty']
+
+    calc_trips(nxG, edge_dict, trips_dict, netwx=True)
+
+    # Initialise lists
+    total_cost = get_total_cost(bike_paths, edge_dict, street_cost)
+    bike_path_perc = bike_path_percentage(edge_dict)
+    total_real_distance_traveled = total_len_on_types(trips_dict, 'real')
+    total_felt_distance_traveled = total_len_on_types(trips_dict, 'felt')
+    nbr_on_street = nbr_of_trips_on_street(trips_dict)
+
+    # Save data of this run to data array
+    data = np.array([bike_paths, total_cost, bike_path_perc,
+                     total_real_distance_traveled,
+                     total_felt_distance_traveled, nbr_on_street, edge_dict,
+                     trips_dict], dtype=object)
+    return data

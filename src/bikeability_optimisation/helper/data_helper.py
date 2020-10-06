@@ -9,9 +9,10 @@ import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex
-from math import ceil
+from math import ceil, cos, asin, sqrt, pi
 from shapely.geometry import Point, Polygon
-from bikeability_optimisation.helper.algorithm_helper import get_street_type
+from .algorithm_helper import get_street_type
+from .algorithm_helper import calc_current_state
 
 
 def read_csv(path, delim=','):
@@ -40,6 +41,26 @@ def write_csv(df, path):
     :return: None
     """
     df.to_csv(path, index=False)
+
+
+def distance(lat1, lon1, lat2, lon2):
+    """
+    Calcuate the distance between two lat/long points in meters.
+    :param lat1: Latitude of point 1
+    :type lat1: float
+    :param lon1: Longitude of pint 1
+    :type lon1: float
+    :param lat2: Latitude of point 2
+    :type lat2: float
+    :param lon2: Longitude of pint 2
+    :type lon2: float
+    :return: Distance in meters
+    :rtype: float
+    """
+    p = pi/180
+    a = 0.5 - cos((lat2-lat1)*p)/2 + cos(lat1*p) * cos(lat2*p) * \
+        (1-cos((lon2-lon1)*p))/2
+    return 12742 * asin(sqrt(a))
 
 
 def get_circle_from_point(lat, long, radius, n_points=20):
@@ -167,7 +188,12 @@ def load_trips(G, path_to_trips, polygon=None, nn_method='kdtree', delim=','):
         stations.add(k[0])
         stations.add(k[1])
 
-    print('Number of trips: {}'.format(sum(trip_nbrs.values())))
+    trip_nbrs_rexcl = {k: v for k, v in trip_nbrs.items() if not k[0] == k[1]}
+    print('Number of Stations: {}, Number of trips: {} (rt incl: {}), '
+          'Unique trips: {} (rt incl {})'
+          .format(len(stations), sum(trip_nbrs_rexcl.values()),
+                  sum(trip_nbrs.values()), len(trip_nbrs_rexcl.keys()),
+                  len(trip_nbrs.keys())))
     return trip_nbrs, stations
 
 
@@ -204,36 +230,42 @@ def plot_used_nodes(G, trip_nbrs, stations, place, save, width=20, height=20,
                 nodes[e_node] += trip_nbrs[(s_node, e_node)]
 
     max_n = max(nodes.values())
-    n_rel = {key: ceil((value / max_n) * 100) for key, value in nodes.items()}
+    n_rel = {key: value for key, value in nodes.items()}
     ns = [100 if n in stations else 0 for n in G.nodes()]
-
+    plt.hist([value for key, value in n_rel.items() if value !=0],
+             bins=ceil(max_n / 250))
+    plt.show()
     for n in G.nodes():
         if n not in stations:
-            n_rel[n] = 101
-
+            n_rel[n] = max_n + 1
     cmap_name = 'cool'
     cmap = plt.cm.get_cmap(cmap_name)
     cmap = ['#999999'] + \
-           [rgb2hex(cmap(n)) for n in np.linspace(1, 0, 100, endpoint=False)] \
+           [rgb2hex(cmap(n)) for n in reversed(np.linspace(1, 0, max_n,
+                                                           endpoint=False))] \
            + ['#ffffff']
     color_n = [cmap[v] for k, v in n_rel.items()]
 
-    fig, ax = ox.plot_graph(G, fig_height=height, fig_width=width, dpi=dpi,
-                            edge_linewidth=2, node_color=color_n,
+    fig, ax = ox.plot_graph(G, bgcolor='#ffffff', figsize=(width, height),
+                            dpi=dpi, edge_linewidth=1.5, node_color=color_n,
                             node_size=ns, node_zorder=3, show=False,
                             close=False)
     sm = plt.cm.ScalarMappable(cmap=plt.cm.get_cmap(cmap_name),
-                               norm=plt.Normalize(vmin=0, vmax=1))
+                               norm=plt.Normalize(vmin=0, vmax=max_n))
     sm._A = []
     cbaxes = fig.add_axes([0.1, 0.075, 0.8, 0.03])
-    cbar = fig.colorbar(sm, orientation='horizontal', cax=cbaxes)
+    cbar = fig.colorbar(sm, orientation='horizontal', cax=cbaxes,
+                        ticks=[0, round(max_n / 2), max_n])
     cbar.ax.tick_params(axis='x', labelsize=18)
-    cbar.ax.set_xlabel('normalised usage of stations', fontsize=24)
-    fig.suptitle('Nodes used as Stations in {}'.format(place.capitalize()),
-                 fontsize=30)
-    plt.savefig('{}/{}.png'.format(plot_save_folder, save), format='png')
+    cbar.ax.set_xticklabels(['Low', 'Medium', 'High'])
+    cbar.ax.set_xlabel('Usage of Stations', fontsize=24, labelpad=20)
 
-    # plt.close('all')
+    fig.suptitle('Nodes used as Stations in {}'.format(place.capitalize()),
+                 fontsize=30, x=0.5, y=0.9, verticalalignment='bottom')
+    plt.savefig('{}/{}_stations.png'.format(plot_save_folder, save),
+                format='png')
+
+    plt.close('all')
     plt.show()
 
 
@@ -253,6 +285,24 @@ def get_polygon_from_json(path_to_json):
     return polygon
 
 
+def get_polygons_from_json(path_to_json):
+    """
+    Reads json at path. json can be created at http://geojson.io/.
+    :param path_to_json: file path to json.
+    :type path_to_json: str
+    :return: Polygon given by json
+    :rtype: Shapely polygon
+    """
+    with open(path_to_json) as j_file:
+        data = json.load(j_file)
+    polygons = []
+    for d in data['features']:
+        coordinates = d['geometry']['coordinates'][0]
+        coordinates = [(item[0], item[1]) for item in coordinates]
+        polygons.append(Polygon(coordinates))
+    return polygons
+
+
 def get_polygon_from_bbox(bbox):
     """
     Returns the Polygon resembled by the given bbox.
@@ -265,6 +315,28 @@ def get_polygon_from_bbox(bbox):
     corners = [(east, north), (west, north), (west, south), (east, south)]
     polygon = Polygon(corners)
     return polygon
+
+
+def get_bbox_from_polygon(polygon):
+    """
+    Returns bbox from given polygon.
+    :param polygon: Polygon
+    :type polygon: Shapely Polygon
+    :return: bbox [north, south, east, west]
+    :rtype: list
+    """
+    x, y = polygon.exterior.coords.xy
+    points = [(i, y[j]) for j, i in enumerate(x)]
+
+    west, south = float('inf'), float('inf')
+    east, north = float('-inf'), float('-inf')
+    for x, y in points:
+        west = min(west, x)
+        south = min(south, y)
+        east = max(east, x)
+        north = max(north, y)
+
+    return [north, south, east, west]
 
 
 def drop_invalid_values(csv, column, values, save=False, save_path='',
@@ -295,7 +367,28 @@ def drop_invalid_values(csv, column, values, save=False, save_path='',
     return df
 
 
-def prepare_downloaded_map(G, trunk=False):
+def consolidate_nodes(G, tol):
+    """
+    Consolidates intersections of graph g with given tolerance in meters.
+    :param G: Graph to consolidate intersections in
+    :type G: networkx (Multi)(Di)Graph
+    :param tol: Tolerance for consolidation in meters
+    :type tol: float or int
+    :return: Graph with consolidated intersections
+    :rtype same as param G
+    """
+    H = ox.project_graph(G, to_crs='epsg:2955')
+    H = ox.consolidate_intersections(H, tolerance=tol, rebuild_graph=True,
+                                     dead_ends=True, reconnect_edges=True)
+    print('Consolidating intersections. Nodes before: {}. Nodes after: {}'
+          .format(len(G.nodes), len(H.nodes)))
+    H = nx.convert_node_labels_to_integers(H)
+    nx.set_node_attributes(H, {n: n for n in H.nodes}, 'osmid')
+    G = ox.project_graph(H, to_crs='epsg:4326')
+    return G
+
+
+def prepare_downloaded_map(G, trunk=False, consolidate=False, tol=35):
     """
     Prepares the downloaded map. Removes all motorway edges and if
     trunk=False also all trunk edges. Turns it to undirected, removes all
@@ -306,6 +399,10 @@ def prepare_downloaded_map(G, trunk=False):
     :param trunk: Decides if trunk should be kept or not. If you want to
     keep trunk in the graph, set to True.
     :type trunk: bool
+    :param consolidate: Set true if intersections should bes consolidated.
+    :type consolidate: bool
+    :param tol: Tolerance of intersection consolidation in meters
+    :type tol: float
     :return: Cleaned graph
     :rtype: networkx graph.
     """
@@ -320,7 +417,7 @@ def prepare_downloaded_map(G, trunk=False):
     else:
         s_t = ['motorway', 'motorway_link', 'trunk', 'trunk_link']
     edges_to_remove = [e for e in G.edges()
-                       if get_street_type(G, e, directed=True) in s_t]
+                       if get_street_type(G, e, multi=True) in s_t]
     G.remove_edges_from(edges_to_remove)
     print('Removed {} car only edges.'.format(len(edges_to_remove)))
 
@@ -328,8 +425,11 @@ def prepare_downloaded_map(G, trunk=False):
     isolated_nodes = list(nx.isolates(G))
     G.remove_nodes_from(isolated_nodes)
     print('Removed {} isolated nodes.'.format(len(isolated_nodes)))
-    G = ox.get_largest_component(G)
+    G = ox.utils_graph.get_largest_component(G)
     print('Reduce to largest connected component')
+
+    if consolidate:
+        G = consolidate_nodes(G, tol)
 
     # Bike graph assumed undirected.
     G = G.to_undirected()
@@ -338,7 +438,8 @@ def prepare_downloaded_map(G, trunk=False):
     return G
 
 
-def download_map_by_bbox(bbox, trunk=False):
+def download_map_by_bbox(bbox, trunk=False, consolidate=False, tol=35,
+                         truncate_by_edge=False):
     """
     Downloads a drive graph from osm given by the bbox and cleans it for usage.
     :param bbox: Boundary box of the map.
@@ -346,6 +447,13 @@ def download_map_by_bbox(bbox, trunk=False):
     :param trunk: Decides if trunk should be kept or not. If you want to
     keep trunk in the graph, set to True.
     :type trunk: bool
+    :param consolidate: Set true if intersections should bes consolidated.
+    :type consolidate: bool
+    :param tol: Tolerance of intersection consolidation in meters
+    :type tol: float
+    :param truncate_by_edge: if True, retain node if it’s outside bounding box
+    but at least one of node’s neighbors are within bounding box
+    :type truncate_by_edge: bool
     :return: Cleaned graph.
     :rtype: networkx graph
     """
@@ -353,14 +461,16 @@ def download_map_by_bbox(bbox, trunk=False):
           'southern bound: {}, eastern bound: {}, western bound: {}'
           .format(bbox[0], bbox[1], bbox[2], bbox[3]))
     G = ox.graph_from_bbox(bbox[0], bbox[1], bbox[2], bbox[3],
-                           network_type='drive')
+                           network_type='drive',
+                           truncate_by_edge=truncate_by_edge)
 
-    G = prepare_downloaded_map(G, trunk)
+    G = prepare_downloaded_map(G, trunk, consolidate=consolidate, tol=tol)
 
     return G
 
 
-def download_map_by_name(city, nominatim_result=1, trunk=False):
+def download_map_by_name(city, nominatim_result=1, trunk=False,
+                         consolidate=False, tol=35, truncate_by_edge=False):
     """
     Downloads a drive graph from osm given by the name and geocode of the
     nominatim database and  cleans it for usage.
@@ -372,20 +482,29 @@ def download_map_by_name(city, nominatim_result=1, trunk=False):
     :param trunk: Decides if trunk should be kept or not. If you want to
     keep trunk in the graph, set to True.
     :type trunk: bool
+    :param consolidate: Set true if intersections should bes consolidated.
+    :type consolidate: bool
+    :param tol: Tolerance of intersection consolidation in meters
+    :type tol: float
+    :param truncate_by_edge: if True, retain node if it’s outside bounding box
+    but at least one of node’s neighbors are within bounding box
+    :type truncate_by_edge: bool
     :return: Cleaned graph.
     :rtype: networkx graph
     """
     print('Downloading map py place. Name of the place: {}, '
           'Nominatim result number {}.'.format(city, nominatim_result))
     G = ox.graph_from_place(city, which_result=nominatim_result,
-                            network_type='drive')
+                            network_type='drive',
+                            truncate_by_edge=truncate_by_edge)
 
-    G = prepare_downloaded_map(G, trunk)
+    G = prepare_downloaded_map(G, trunk, consolidate=consolidate, tol=tol)
 
     return G
 
 
-def download_map_by_polygon(polygon, trunk=False):
+def download_map_by_polygon(polygon, trunk=False, consolidate=False, tol=35,
+                            truncate_by_edge=False):
     """
     Downloads a drive graph from osm given by the polygon and cleans it for
     usage.
@@ -394,13 +513,21 @@ def download_map_by_polygon(polygon, trunk=False):
     :param trunk: Decides if trunk should be kept or not. If you want to
     keep trunk in the graph, set to True.
     :type trunk: bool
+    :param consolidate: Set true if intersections should bes consolidated.
+    :type consolidate: bool
+    :param tol: Tolerance of intersection consolidation in meters
+    :type tol: float
+    :param truncate_by_edge: if True, retain node if it’s outside bounding box
+    but at least one of node’s neighbors are within bounding box
+    :type truncate_by_edge: bool
     :return: Cleaned graph.
     :rtype: networkx graph
     """
     print('Downloading map py polygon. Given polygon: {}'.format(polygon))
-    G = ox.graph_from_polygon(polygon, network_type='drive')
+    G = ox.graph_from_polygon(polygon, network_type='drive',
+                              truncate_by_edge=truncate_by_edge)
 
-    G = prepare_downloaded_map(G, trunk)
+    G = prepare_downloaded_map(G, trunk, consolidate=consolidate, tol=tol)
 
     return G
 
@@ -416,5 +543,155 @@ def save_map(G, save_path, save_name):
     :type save_name: str
     :return: none
     """
-    ox.save_graphml(G, filename='{}.graphml'.format(save_name),
-                    folder=save_path)
+    ox.save_graphml(G, filepath=save_path+'{}.graphml'.format(save_name))
+
+
+def data_to_matrix(stations, trips):
+    """
+    Converts given od demand into origin-destination matrix.
+    :param stations: Stations of the demand
+    :type stations: list
+    :param trips: Demand
+    :type trips: dict
+    :return: OD Matrix
+    :rtype: pandas dataframe
+    """
+    df = pd.DataFrame(stations, columns=['station'])
+    for station in stations:
+        df[station] = [np.nan for x in range(len(stations))]
+    df.set_index('station', inplace=True)
+    for k, v in trips.items():
+        if not k[0] == k[1]:
+            df[k[0]][k[1]] = v
+    return df
+
+
+def matrix_to_graph(df, rename_columns=None, data=True):
+    """
+    Turns OD Matrix to graph.
+    :param df: OD Matrix
+    :type df: pandas dataframe
+    :param rename_columns: If columns of the df should be renamed set
+    appropriate dict here.
+    :type rename_columns: dict
+    :param data: If metadata of the demand (degree, indegree, outdegree,
+    imbalance) should be returned or not.
+    :type data: bool
+    :return: Graph and (if wanted) meta data
+    :rtype: networkx graph and list, list, list, list
+    """
+    if rename_columns is None:
+        rename_columns = {'station': 'source', 'level_1': 'target', 0: 'trips'}
+    df.values[[np.arange(len(df))] * 2] = np.nan
+    df = df.stack().reset_index()
+    df = df.rename(columns=rename_columns)
+    g = nx.from_pandas_edgelist(df=df, edge_attr='trips',
+                                create_using=nx.MultiDiGraph)
+    edge_list = list(g.edges())
+    for u, v, d in g.edges(data='trips'):
+        if (v, u) in edge_list:
+            g[v][u][0]['total trips'] = d + g[v][u][0]['trips']
+            g[v][u][0]['imbalance'] = abs(d - g[v][u][0]['trips']) / \
+                                      max(d, g[v][u][0]['trips'])
+        else:
+            g[u][v][0]['total trips'] = d
+            g[u][v][0]['imbalance'] = 1
+    if data:
+        indegree = [d for n, d in g.in_degree()]
+        outdegree = [d for n, d in g.out_degree()]
+        g = nx.Graph(g)
+        degree = [d for n, d in nx.degree(g)]
+        imbalance = [d for u, v, d in g.edges(data='imbalance')]
+        for u, v, d in g.edges(data='total trips'):
+            g[u][v]['trips'] = d
+        return g, degree, indegree, outdegree, imbalance
+    else:
+        g = nx.Graph(g)
+        for u, v, d in g.edges(data='total trips'):
+            g[u][v]['trips'] = d
+        return g
+
+
+def sort_clustering(G):
+    """
+    Sorts nodes of G by clustering coefficient.
+    :param G: Graph to sort
+    :type G: networkx graph
+    :return: List of nodes sorted by clustering coefficient.
+    :rtype: list
+    """
+    clustering = nx.clustering(G, weight='trips')
+    clustering = {k: v for k, v in
+                  sorted(clustering.items(), key=lambda item: item[1])}
+    return list(reversed(clustering.keys()))
+
+
+def get_communities(requests, requests_result, stations, G):
+    """
+    Get communities of the of the demand in the city. The requests should
+    consists the smallest possible administrative level for the city (e.g.
+    districts or boroughs).
+    :param requests: Nominatim requests for the areas of the city
+    :type requests: list of str
+    :param requests_result: Nominatim which_results
+    :type requests_result: list of int
+    :param stations: Stations of the demand
+    :type stations: list
+    :param G: Graph of the city
+    :type G: networkx graph
+    :return: Two dataframes one keyed by community the other by station.
+    :rtype: pandas dataframes
+    """
+    gdf = ox.gdf_from_places(requests, which_results=requests_result)
+
+    communities = [x.split(',')[0] for x in requests]
+    df_com_stat = pd.DataFrame(communities, columns=['community'])
+    df_com_stat['stations'] = [np.nan for x in range(len(communities))]
+    df_com_stat['stations'] = df_com_stat['stations'].astype('object')
+    df_com_stat.set_index('community', inplace=True)
+
+    com_poly = {c: gdf['geometry'][idx] for idx, c in enumerate(communities)}
+
+    com_stat = {k: [] for k in com_poly.keys()}
+    stat_com = {k: None for k in stations}
+    for station in stations:
+        for com, poly in com_poly.items():
+            long = G.nodes[station]['x']
+            lat = G.nodes[station]['y']
+            if poly.intersects(Point(long, lat)):
+                com_stat[com].append(station)
+                stat_com[station] = com
+
+    for com, stat in com_stat.items():
+        df_com_stat.at[com, 'stations'] = stat
+    df_stat_com = pd.DataFrame.from_dict(stat_com, orient='index',
+                                         columns=['community'])
+
+    return df_com_stat, df_stat_com
+
+
+def calc_average_trip_len(nxG, trip_nbrs, penalties=True):
+    """
+    Calculate the average trip length of given trips in given graph.
+    :param nxG: Graph to calculate trips in
+    :type nxG: networkx graph
+    :param trip_nbrs: Trips
+    :type trip_nbrs: dict
+    :param penalties: If penalties should be applied or not
+    :type penalties: bool
+    :return: Average trip length in meters
+    :rtype: float
+    """
+    if penalties:
+        bike_paths = []
+    else:
+        bike_paths = list(nxG.edges())
+
+    nxG = nx.Graph(nxG.to_undirected())
+    data = calc_current_state(nxG, trip_nbrs, bike_paths=bike_paths)
+    trips_dict = data[7]
+
+    length = []
+    for trip, trip_info in trips_dict.items():
+        length += [trip_info['length felt']] * trip_info['nbr of trips']
+    return np.average(length)

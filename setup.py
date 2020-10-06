@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup
 
 setup(name='bikeability_optimisation',
-      version='1',
+      version='0.11',
       description='',
       author='Christoph Steinacker',
       author_email='',
