@@ -8,4 +8,4 @@ Depending on the settings, it can take several hours to finish. For example with
 The plot_compare.py plots a comparison of the two cities. In order to work, the city-specifc plot scripts have to be executed beforehand.
 
 ## Data Acknowledgement
-For Hamburg I use data provided by Call a Bike by Deutsche Bahn AG (https://data.deutschebahn.com/dataset/data-call-a-bike) (License: CC BY 4.0) and for Oslo from Oslo Bysykkel (https://oslobysykkel.no/en/open-data/historical) (License: NLOD 2.0). Be aware, the data is already cleaned, both cities do not provide the data in this exact format.
+For Hamburg I use data provided by Call a Bike by Deutsche Bahn AG (https://data.deutschebahn.com/dataset/data-call-a-bike) (Licence: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/legalcode)) and for Oslo from Oslo Bysykkel (https://oslobysykkel.no/en/open-data/historical) (Licence: [NLOD 2.0](https://data.norge.no/nlod/en/2.0/)). Be aware, the data is already cleaned, both cities do not provide the data in this exact format.
