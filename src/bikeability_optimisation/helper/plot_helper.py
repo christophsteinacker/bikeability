@@ -505,8 +505,11 @@ def plot_matrix(city, df, plot_folder, save, cmap=None, figsize=None,
     fig.savefig('{}{}_od_matrix.{}'.format(plot_folder, save, plot_format),
                 format=plot_format, bbox_inches='tight')
 
-# stackoverflow.com/questions/32333870/
-# how-can-i-show-a-km-ruler-on-a-cartopy-matplotlib-plot
+# The functions _axes_to_lonlat, _upper_bound, _distance_along_line,
+# _distance_along_line and scale_bar are from a Stack Overflow question
+# (https://stackoverflow.com/a/50674451) and were posted there by the user
+# mephistolotl (https://stackoverflow.com/users/2676166/mephistolotl) under
+# CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode).
 def _axes_to_lonlat(ax, coords):
     """(lon, lat) from axes coordinates."""
     display = ax.transAxes.transform(coords)
