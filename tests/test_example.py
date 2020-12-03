@@ -4,5 +4,5 @@ class TestExamples(unittest.TestCase):
     def setUp(self):
         pass
 
-    def test_blabla(self):
+    def test(self):
         assert 1 == 1
