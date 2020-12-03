@@ -1,5 +1,6 @@
 """
-This module includes all necessary functions for the data preparation.
+This module includes all necessary helper functions for the data preparation
+and handling.
 """
 import json
 import geog
@@ -7,12 +8,9 @@ import numpy as np
 import osmnx as ox
 import networkx as nx
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.colors import rgb2hex
-from math import ceil, cos, asin, sqrt, pi
+from math import cos, asin, sqrt, pi
 from shapely.geometry import Point, Polygon
-from .algorithm_helper import get_street_type
-from .algorithm_helper import calc_current_state
+from .algorithm_helper import get_street_type, calc_current_state
 
 
 def read_csv(path, delim=','):
@@ -195,78 +193,6 @@ def load_trips(G, path_to_trips, polygon=None, nn_method='kdtree', delim=','):
                   sum(trip_nbrs.values()), len(trip_nbrs_rexcl.keys()),
                   len(trip_nbrs.keys())))
     return trip_nbrs, stations
-
-
-def plot_used_nodes(G, trip_nbrs, stations, place, save, width=20, height=20,
-                    dpi=300, plot_save_folder=''):
-    """
-    Plots usage of nodes in graph G. trip_nbrs and stations should be
-    structured as returned from load_trips().
-    :param G: graph to plot in.
-    :type G: networkx graph
-    :param trip_nbrs: trips to plot the usage of.
-    :type trip_nbrs: dict
-    :param stations: set of stations.
-    :type stations: set
-    :param place: name of the city/place you are plotting.
-    :type place: str
-    :param save: save name for the plot.
-    :type save: str
-    :param width: width of the plot.
-    :type width: int or float
-    :param height: height opf the plot.
-    :type height: int or float
-    :param dpi: dpi of the plot.
-    :type dpi: int
-    :param plot_save_folder:
-    :type plot_save_folder: str
-    :return: None
-    """
-    nodes = {n: 0 for n in G.nodes()}
-    for s_node in G.nodes():
-        for e_node in G.nodes():
-            if (s_node, e_node) in trip_nbrs:
-                nodes[s_node] += trip_nbrs[(s_node, e_node)]
-                nodes[e_node] += trip_nbrs[(s_node, e_node)]
-
-    max_n = max(nodes.values())
-    n_rel = {key: value for key, value in nodes.items()}
-    ns = [100 if n in stations else 0 for n in G.nodes()]
-    plt.hist([value for key, value in n_rel.items() if value !=0],
-             bins=ceil(max_n / 250))
-    plt.show()
-    for n in G.nodes():
-        if n not in stations:
-            n_rel[n] = max_n + 1
-    cmap_name = 'cool'
-    cmap = plt.cm.get_cmap(cmap_name)
-    cmap = ['#999999'] + \
-           [rgb2hex(cmap(n)) for n in reversed(np.linspace(1, 0, max_n,
-                                                           endpoint=False))] \
-           + ['#ffffff']
-    color_n = [cmap[v] for k, v in n_rel.items()]
-
-    fig, ax = ox.plot_graph(G, bgcolor='#ffffff', figsize=(width, height),
-                            dpi=dpi, edge_linewidth=1.5, node_color=color_n,
-                            node_size=ns, node_zorder=3, show=False,
-                            close=False)
-    sm = plt.cm.ScalarMappable(cmap=plt.cm.get_cmap(cmap_name),
-                               norm=plt.Normalize(vmin=0, vmax=max_n))
-    sm._A = []
-    cbaxes = fig.add_axes([0.1, 0.075, 0.8, 0.03])
-    cbar = fig.colorbar(sm, orientation='horizontal', cax=cbaxes,
-                        ticks=[0, round(max_n / 2), max_n])
-    cbar.ax.tick_params(axis='x', labelsize=18)
-    cbar.ax.set_xticklabels(['Low', 'Medium', 'High'])
-    cbar.ax.set_xlabel('Usage of Stations', fontsize=24, labelpad=20)
-
-    fig.suptitle('Nodes used as Stations in {}'.format(place.capitalize()),
-                 fontsize=30, x=0.5, y=0.9, verticalalignment='bottom')
-    plt.savefig('{}/{}_stations.png'.format(plot_save_folder, save),
-                format='png')
-
-    plt.close('all')
-    plt.show()
 
 
 def get_polygon_from_json(path_to_json):
