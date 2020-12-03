@@ -1,23 +1,25 @@
-from math import ceil
+"""
+This module includes all necessary functions for the plotting functionality.
+"""
 import json
 import geopandas
-# import matplotlib.patches as mpatches
-from matplotlib.colors import rgb2hex, Normalize, LogNorm
+import contextily as ctx
+import osmnx as ox
+import matplotlib.ticker as ticker
+import matplotlib.lines as mlines
+from matplotlib.colors import rgb2hex, Normalize
 from matplotlib.legend_handler import HandlerTuple
 from matplotlib.lines import Line2D
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
 from pathlib import Path
-import matplotlib.lines as mlines
-import osmnx as ox
-import contextily as ctx
 from pyproj import Proj, transform
-from geopy.distance import distance
 from scipy import stats
 from collections import Counter
+from .data import get_polygon_from_json, get_polygons_from_json, \
+    get_bbox_from_polygon, get_polygon_from_bbox
+from .algorithm import calc_current_state
 from ..helper.plot_helper import *
-from ..helper.data_helper import get_polygon_from_json, \
-    get_polygons_from_json, get_bbox_from_polygon, get_polygon_from_bbox
-from ..helper.algorithm_helper import calc_current_state
 
 
 def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
@@ -34,20 +36,19 @@ def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
     :param node_pos:
     :param node_size:
     :param node_color:
-    :type node_color: str or list
     :param node_cmap:
     :param node_cmin:
     :param node_cmax:
     :param node_cmap_label:
     :param edge_width:
     :param edge_color:
-    :type edge_color: str or list
     :param edge_cmap:
     :param edge_cmin:
     :param edge_cmax:
     :param edge_cmap_label:
     :param bg_area:
     :param overlay_poly:
+    :param scalebar:
     :param figsize:
     :param dpi:
     :param folder:
@@ -58,6 +59,8 @@ def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
     if figsize is None:
         figsize = [10, 10]
     plt.rcdefaults()
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Arial']
 
     if scalebar:
         fig = plt.figure(figsize=figsize, dpi=dpi)
@@ -94,7 +97,7 @@ def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
         cbaxes = divider.append_axes('bottom', size="5%", pad=0.05)
         cbar = fig.colorbar(sm, orientation='horizontal', cax=cbaxes)
         cbar.ax.tick_params(axis='x', labelsize=16)
-        cbar.ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        cbar.ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
         cbar.ax.set_xlabel(node_cmap_label, fontsize=18)
     if (node_cmap is None) and (edge_cmap is not None):
         sm = plt.cm.ScalarMappable(cmap=edge_cmap,
@@ -113,7 +116,7 @@ def plot_nx_graph(G, node_pos=None, node_size=100, node_color='b',
         cbaxes_1 = divider_1.append_axes('left', size="5%", pad=0.05)
         cbar_1 = fig.colorbar(sm_1, orientation='vertical', cax=cbaxes_1)
         cbar_1.ax.tick_params(axis='y', labelsize=16)
-        cbar_1.ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        cbar_1.ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
         cbar_1.ax.set_ylabel(node_cmap_label, fontsize=18)
         sm_2 = plt.cm.ScalarMappable(cmap=edge_cmap,
                                      norm=Normalize(vmin=edge_cmin,
@@ -143,16 +146,16 @@ def plot_station_degree(G, degree=None, indegree=None, outdegree=None,
     if degree is None:
         degree = [d for n, d in nx.degree(G)]
 
-    degree_log = [np.log10(x) for x in degree]
+    # degree_log = [np.log10(x) for x in degree]
     min_degree = min(degree)
-    min_degree_log = np.log10(min_degree)
+    # min_degree_log = np.log10(min_degree)
     max_degree = max(degree)
-    max_degree_log = np.log10(max_degree)
+    # max_degree_log = np.log10(max_degree)
 
     plot_nx_graph(G, node_pos=node_pos, node_size=100, node_color=degree,
                   node_cmap=node_cmap, node_cmin=min_degree,
                   node_cmax=max_degree, node_cmap_label='station degree',
-                  edge_width=0, bg_area=bg_area,  overlay_poly=overlay_poly,
+                  edge_width=0, bg_area=bg_area, overlay_poly=overlay_poly,
                   figsize=figsize, dpi=dpi, folder=plot_folder,
                   filename=save + '_degree_graph', plot_format=plot_format)
 
@@ -162,24 +165,69 @@ def plot_station_degree(G, degree=None, indegree=None, outdegree=None,
         hist_xlim = (min(degree) - 10, max(degree) + 1)
     bins = round((hist_xlim[1] - hist_xlim[0]) / 2)
     plot_histogram(degree, '{}{}_degree_hist'.format(plot_folder, save),
-                   bins=bins, xlim=hist_xlim,
-                   xlabel='degree', ylabel='# of stations',
-                   plot_format=plot_format, dpi=dpi)
+                   bins=bins, xlim=hist_xlim, xlabel='degree',
+                   ylabel='# of stations', plot_format=plot_format, dpi=dpi)
     if indegree is not None:
-        plot_histogram(indegree, '{}{}_indegree_hist'
-                       .format(plot_folder, save), bins=bins, xlim=hist_xlim,
-                       xlabel='indegree', ylabel='# of stations',
-                       plot_format=plot_format, dpi=dpi)
+        plot_histogram(indegree, '{}{}_indegree_hist'.format(plot_folder,
+                                                             save),
+                       bins=bins, xlim=hist_xlim, xlabel='indegree',
+                       ylabel='# of stations', plot_format=plot_format,
+                       dpi=dpi)
     if outdegree is not None:
-        plot_histogram(outdegree, '{}{}_outdegree_hist'
-                       .format(plot_folder, save), bins=bins, xlim=hist_xlim,
-                       xlabel='degree', ylabel='# of stations',
-                       plot_format=plot_format, dpi=dpi)
+        plot_histogram(outdegree, '{}{}_outdegree_hist'.format(plot_folder,
+                                                               save),
+                       bins=bins, xlim=hist_xlim, xlabel='degree',
+                       ylabel='# of stations', plot_format=plot_format,
+                       dpi=dpi)
+
+
+def plot_od_matrix(city, df, plot_folder, save, cmap=None, figsize=None,
+                   dpi=150, plot_format='png', relative=False):
+    """
+    Plot the origin destination matrix for a given city.
+    :param city:
+    :param df:
+    :param plot_folder:
+    :param save:
+    :param cmap:
+    :param figsize:
+    :param dpi:
+    :param plot_format:
+    :param relative:
+    :return:
+    """
+    if cmap is None:
+        cmap = plt.cm.get_cmap('viridis_r')
+    if figsize is None:
+        figsize = [10, 10]
+
+    if relative:
+        dfplot = df.divide(df.max().max())
+    else:
+        dfplot = df
+    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
+    c = ax.pcolor(dfplot, cmap=cmap, norm=LogNorm(vmin=dfplot.min().min(),
+                                                  vmax=dfplot.max().max()))
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('bottom', size="5%", pad=0.05)
+    plt.colorbar(c, cax=cax, orientation='horizontal')
+    ax.tick_params(axis='x', which='both', bottom=False, top=False,
+                   labelbottom=False)
+    ax.tick_params(axis='y', which='both', left=False, right=False,
+                   labelleft=False)
+    cax.tick_params(axis='x', labelsize=16)
+    cax.set_xlabel('cyclists per trip', fontsize=18)
+
+    ax.set_title('Trips in {}'.format(city), fontsize='x-large')
+    fig.savefig('{}{}_od_matrix.{}'.format(plot_folder, save, plot_format),
+                format=plot_format, bbox_inches='tight')
 
 
 def plot_stats(saves, colors, data_folder, plot_folder, plot_format='png',
                figsize=None, dpi=150):
     plt.rcdefaults()
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Arial']
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
 
     degree = {}
@@ -201,7 +249,7 @@ def plot_stats(saves, colors, data_folder, plot_folder, plot_format='png',
                                                     max(degree[city])))
 
         trips[city] = data['trips'][()]
-        total_trips = sum(trips[city])
+        # total_trips = sum(trips[city])
         unique_trips = len(set(trips[city]))
         test = []
         for idx, t_1 in enumerate(sorted(trips[city])):
@@ -358,53 +406,85 @@ def plot_load(city, save, G, edited_edges, trip_nbrs, node_size, rev, minmode,
 
 
 def plot_used_nodes(save, G, trip_nbrs, stations, plot_folder,
-                    figsize=(12, 12), dpi=150, plot_format='png'):
+                    figsize=(3.5, 3.5), dpi=150, plot_format='svg'):
+    """
+    Plots usage of nodes in graph G. trip_nbrs and stations should be
+    structured as returned from load_trips().
+    :param G: graph to plot in.
+    :type G: networkx graph
+    :param trip_nbrs: trips to plot the usage of.
+    :type trip_nbrs: dict
+    :param stations: list of stations.
+    :type stations: list
+    :param save: save name for the plot.
+    :type save: str
+    :param figsize: width and height of the plot.
+    :type figsize: tuple
+    :param dpi: dpi of the plot.
+    :type dpi: int
+    :param plot_folder:
+    :type plot_folder: str
+    :type plot_format:
+    :return: None
+    """
     print('Plotting used nodes.')
 
     nodes = {n: 0 for n in G.nodes()}
     for s_node in G.nodes():
         for e_node in G.nodes():
+            if e_node == s_node:
+                # print('Round trip')
+                continue
             if (s_node, e_node) in trip_nbrs:
                 nodes[s_node] += trip_nbrs[(s_node, e_node)]
                 nodes[e_node] += trip_nbrs[(s_node, e_node)]
 
-    trip_count = sum(trip_nbrs.values())
-    station_count = len(stations)
+    nodes = {n: int(t * (365 / 1246)) for n, t in nodes.items()}
+    # nodes = {n: 29695 if t != 0 else 0 for n, t in nodes.items()}
+    # DD: 881 HH: 1246
+
+    # trip_count = sum(trip_nbrs.values())
+    # station_count = len(stations)
 
     max_n = max(nodes.values())
+    # max_n = 89496
     print('Maximal station usage: {}'.format(max_n))
 
     n_rel = {key: value for key, value in nodes.items()}
-    ns = [100 if n in stations else 0 for n in G.nodes()]
+    ns = [4 if n in stations else 0 for n in G.nodes()]  # 20
 
     for n in G.nodes():
         if n not in stations:
             n_rel[n] = max_n + 1
     min_n = min(n_rel.values())
+    # min_n = 3244
     print('Minimal station usage: {}'.format(min_n))
 
     r = magnitude(max_n)
-    hist_xlim = (0.0, round(max_n + 0.1 * max_n, -(r - 1)))
 
     hist_data = [value for key, value in n_rel.items() if value != max_n + 1]
     hist_save = '{}{}_stations_usage_distribution'.format(plot_folder, save)
-    hist_xlim = (0.0, round(max_n + 0.1 * max_n, -(r - 1)))
-    plot_histogram(hist_data, hist_save, xlabel='Number of total Trips',
-                   ylabel='Number of Stations', xlim=hist_xlim,
-                   plot_format='png', dpi=150)
+    hist_xlim = (0.0, round(max_n, -(r - 1)))
 
     cmap_name = 'cool'
     cmap = plt.cm.get_cmap(cmap_name)
-    cmap = ['#999999'] + \
+    print('MITTELWERT:', np.mean(hist_data))
+    plot_histogram(hist_data, hist_save,
+                   xlabel='total number of trips per year',
+                   ylabel='number of stations', xlim=hist_xlim, bins=25,
+                   cm=cmap, plot_format=plot_format, dpi=150,
+                   figsize=figsize)    # (3.65, 1.3)
+
+    cmap = ['#808080'] + \
            [rgb2hex(cmap(n)) for n in reversed(np.linspace(1, 0, max_n,
                                                            endpoint=True))] \
            + ['#ffffff']
     color_n = [cmap[v] for k, v in n_rel.items()]
 
-    fig2, ax2 = plt.subplots(dpi=dpi, figsize=figsize)
-    ox.plot_graph(G, ax=ax2, bgcolor='#ffffff', edge_linewidth=1.5,
+    fig2, ax2 = plt.subplots(dpi=dpi, figsize=(1.5, 1.4))  # 1.5, 1.4 or 3.5
+    ox.plot_graph(G, ax=ax2, bgcolor='#ffffff', edge_linewidth=0.3,
                   node_color=color_n, node_size=ns, node_zorder=3,
-                  show=False, close=False)
+                  show=False, close=False, edge_color='#b3b3b3')
     sm = plt.cm.ScalarMappable(cmap=plt.cm.get_cmap(cmap_name),
                                norm=plt.Normalize(vmin=0, vmax=max_n))
 
@@ -423,12 +503,13 @@ def plot_used_nodes(save, G, trip_nbrs, stations, plot_folder,
         min_r = magnitude(min_n)
         cbar = fig2.colorbar(sm, orientation='horizontal', cax=cbaxes,
                              ticks=[0, min_n, round(max_n / 2), max_n])
-        cbar.ax.set_xticklabels([0, round(min_n, -(min_r - 1)),
+        cbar.ax.set_xticklabels([0, round(min_n, -(min_r - 2)),
                                  int(round(max_n / 2, -(max_r - 2))),
-                                 round(max_n, -(max_r - 1))])
+                                 round(max_n, -(max_r - 2))])
 
-    cbar.ax.tick_params(axis='x', labelsize=16)
-    cbar.ax.set_xlabel('total number of trips', fontsize=18)
+    cbar.outline.set_linewidth(0.5)
+    cbar.ax.tick_params(axis='x', labelsize=8, width=0.5)
+    cbar.ax.set_xlabel('total number of trips per year', fontsize=8)
 
     # fig2.suptitle('{}, Stations: {}, Trips: {}'
     #              .format(city.capitalize(), station_count, trip_count),
@@ -446,13 +527,15 @@ def plot_edges(G, edge_color, node_size, save_path, plot_format='png',
     ox.plot_graph(G, ax=ax, bgcolor='#ffffff', edge_color=edge_color,
                   edge_linewidth=1.5, node_color='C0', node_size=node_size,
                   node_zorder=3, show=False, close=False)
-    # fig.suptitle(title, fontsize=24)
+    if title != '':
+        ax.set_title(title, fontsize=28)
     fig.savefig(save_path, format=plot_format, bbox_inches='tight')
     plt.close(fig)
 
 
 def plot_bp_evo(save, G, edited_edges, bike_path_perc, cut, ps,
-                node_size, rev, minmode, plot_folder, plot_format='png'):
+                node_size, rev, minmode, plot_folder, titles=False,
+                plot_format='png'):
     print('Begin plotting bike path evolution.')
     plot_folder_evo = plot_folder + 'evolution/'
     Path(plot_folder_evo).mkdir(parents=True, exist_ok=True)
@@ -475,8 +558,14 @@ def plot_bp_evo(save, G, edited_edges, bike_path_perc, cut, ps,
             ec_evo = get_edge_color(G, ee_evo, 'bike path', edited_color)
         save_path = '{:}{:}-edited-mode-{:d}{:}-{:}.{:}'.format(
                 plot_folder_evo, save, rev, minmode, i, plot_format)
-        plot_edges(G, ec_evo, node_size, save_path, plot_format=plot_format,
-                   figsize=(10, 10), dpi=150)
+        if titles:
+            plot_edges(G, ec_evo, node_size, save_path,
+                       title='Fraction of Bike Paths: {:3.0f}%'.format(
+                           j * 100),
+                       plot_format=plot_format, figsize=(10, 10), dpi=150)
+        else:
+            plot_edges(G, ec_evo, node_size, save_path,
+                       plot_format=plot_format, figsize=(10, 10), dpi=150)
 
     nx.set_edge_attributes(G, False, 'bike path')
     ee_cut = ee[:cut]
@@ -511,8 +600,6 @@ def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
         ee_algo = list(reversed(ee_algo))
         bpp_algo = list(reversed(bpp_algo))
 
-    idx = next(x for x, val in enumerate(bpp_algo) if abs(val - bpp_cs) <=
-               0.001)
     idx = min(range(len(bpp_algo)), key=lambda i: abs(bpp_algo[i] - bpp_cs))
 
     print('Difference in BPP between p+s and algo: {:6.5f}'
@@ -534,12 +621,12 @@ def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
 
     cmap_name = 'plasma'
     cmap = plt.cm.get_cmap(cmap_name)
-    c = [cmap(n) for n in reversed(np.linspace(1, 0, 10, endpoint=True))]
+    # c = [cmap(n) for n in reversed(np.linspace(1, 0, 10, endpoint=True))]
 
-    color_algo = 'midnightblue'
-    color_cs = 'darkorange'
-    color_both = 'crimson'
-    color_unused = '#999999'
+    color_algo = '#000075'  # '0080c0'
+    color_cs = '#40e640'  # '40e640'
+    color_both = '#f58231'  # '40e6c0'
+    color_unused = '#808080'
 
     len_algo = 0
     len_cs = 0
@@ -582,33 +669,34 @@ def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
         print('You have to choose between algo, p+s and diff.')
 
     fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
+    # dd(2.2, 2.2), hh (2.6, 2.6)
     ox.plot_graph(G, bgcolor='#ffffff', ax=ax,
-                  node_size=node_size, node_color='C0', node_zorder=3,
-                  edge_linewidth=1.5, edge_color=ec,
+                  node_size=node_size, node_color='k', node_zorder=3,
+                  edge_linewidth=0.6, edge_color=ec,
                   show=False, close=False)
     if mode == 'algo':
         leg = [Line2D([0], [0], color=color_algo, lw=4),
                Line2D([0], [0], color=color_unused, lw=4)]
-        # ax.legend(leg, ['Algorithm', 'None'],
-        #          bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
-        #          ncol=2, mode="expand", borderaxespad=0., fontsize=12)
-        # ax.set_title('Algorithm', fontsize=24)
+        ax.legend(leg, ['Algorithm', 'None'],
+                  bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
+                  ncol=2, mode="expand", borderaxespad=0., fontsize=12)
+        ax.set_title('Algorithm', fontsize=24)
     elif mode == 'p+s':
         leg = [Line2D([0], [0], color=color_cs, lw=4),
                Line2D([0], [0], color=color_unused, lw=4)]
-        # ax.legend(leg, ['Primary + Secondary', 'None'],
-        #          bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
-        #          ncol=2, mode="expand", borderaxespad=0., fontsize=12)
-        # ax.set_title('Primary/Secondary', fontsize=24)
+        ax.legend(leg, ['Primary + Secondary', 'None'],
+                  bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
+                  ncol=2, mode="expand", borderaxespad=0., fontsize=12)
+        ax.set_title('Primary/Secondary', fontsize=24)
     elif mode == 'diff':
         leg = [Line2D([0], [0], color=color_both, lw=4),
                Line2D([0], [0], color=color_algo, lw=4),
                Line2D([0], [0], color=color_cs, lw=4),
                Line2D([0], [0], color=color_unused, lw=4)]
-        # ax.legend(leg, ['Both', 'Algorithm', 'Primary + Secondary', 'None'],
-        #          bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
-        #          ncol=4, mode="expand", borderaxespad=0., fontsize=12)
-        # ax.set_title('Comparison', fontsize=24)
+        ax.legend(leg, ['Both', 'Algorithm', 'Primary + Secondary', 'None'],
+                  bbox_to_anchor=(0, -0.05, 1, 1), loc=3,
+                  ncol=4, mode="expand", borderaxespad=0., fontsize=12)
+        ax.set_title('Comparison', fontsize=24)
     plt.savefig(plot_folder + '{0:s}-bp-build-{1:d}{2:d}_{3:s}.{4:s}'
                 .format(save, rev, minmode, mode, plot_format),
                 format=plot_format, bbox_inches='tight')
@@ -638,7 +726,7 @@ def plot_bp_diff(G, ee_1, ee_2, bpp_1, bpp_2, node_color,
     color_1 = 'midnightblue'
     color_2 = 'darkorange'
     color_both = 'crimson'
-    color_unused = '#999999'
+    color_unused = '#808080'
 
     plots = np.linspace(0, 1, 101)
     for i, j in enumerate(plots):
@@ -769,7 +857,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     cost_now = cost_now / total_cost[end]
     # gcbc_size_normed = [i / max(gcbc_size) for i in reversed(gcbc_size)]
 
-    ns = [50 if n in stations else 0 for n in nxG_plot.nodes()]
+    ns = [3 if n in stations else 0 for n in nxG_plot.nodes()]
     cmap_name = 'viridis'
     cmap = plt.cm.get_cmap(cmap_name)
     c = [cmap(n) for n in np.linspace(1, 0, 9, endpoint=True)]
@@ -787,56 +875,66 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
           .format(bpp_cut[next(x for x, val in enumerate(ba) if val >= 0.8)]))
 
     # Plotting
-    fig1, ax1 = plt.subplots(dpi=150, figsize=(12, 10))
+    fig1, ax1 = plt.subplots(dpi=150, figsize=(1.9, 1.675))
     ax12 = ax1.twinx()
+    for axis in ['top', 'bottom', 'left', 'right']:
+        ax1.spines[axis].set_linewidth(0.5)
+        ax12.spines[axis].set_linewidth(0.5)
     ax1.set_xlim(0.0, 1.0)
     ax1.set_ylim(0.0, 1.0)
     ax12.set_ylim(0.0, 1.0)
 
-    c_ba = '#4363d8'
+    c_ba = '#0080c0'
 
-    ax1.plot(bpp_cut, ba[:end], c=c_ba, label='bikeability', lw=2.5)
-    ax1.plot(bpp_now, ba_now, c=c_ba, ms=16, marker='D')
+    ax1.plot(bpp_cut, ba[:end], c=c_ba, label='bikeability', lw=0.75)
+    ax1.plot(bpp_now, ba_now, c=c_ba, ms=2, marker='o')
     xmax, ymax = coord_transf(bpp_now, max([ba_y, ba_now]),
                               xmax=1, xmin=0, ymax=1, ymin=0)
-    ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_ba, ls='--', alpha=0.5)
-    ax1.axhline(y=ba_now, xmax=xmax, xmin=0, c=c_ba, ls='--', alpha=0.5)
-    ax1.axhline(y=ba_y, xmax=xmax, xmin=0, c=c_ba, ls='--', alpha=0.5)
+    ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_ba, lw=0.5, ls='--',
+                alpha=0.5)
+    ax1.axhline(y=ba_now, xmax=xmax, xmin=0, c=c_ba, lw=0.5, ls='--',
+                alpha=0.5)
+    ax1.axhline(y=ba_y, xmax=xmax, xmin=0, c=c_ba, lw=0.5, ls='--', alpha=0.5)
+    print('ba:', ba_y)
 
-    ax1.set_ylabel('bikeability', fontsize=24, color=c_ba)
-    ax1.tick_params(axis='y', labelsize=16, labelcolor=c_ba)
-    ax1.tick_params(axis='x', labelsize=16)
+    ax1.set_ylabel('bikeability b(m)', fontsize=10, color=c_ba)
+    ax1.tick_params(axis='y', labelsize=8, labelcolor=c_ba, width=0.5)
+    ax1.tick_params(axis='x', labelsize=8, width=0.5)
     ax1.yaxis.set_minor_locator(AutoMinorLocator())
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
-    c_cost = '#808000'
+    c_cost = '#333333'
 
     ax12.plot(bpp_cut, [x / total_cost[end] for x in total_cost[:end]],
-              c=c_cost, label='total cost', lw=2.5)
-    ax12.plot(bpp_now, cost_now, c=c_cost, ms=16, marker='s')
+              c=c_cost, label='total cost', lw=0.75)
+    ax12.plot(bpp_now, cost_now, c=c_cost, ms=2, marker='s')
     xmin, ymax = coord_transf(bpp_now, cost_now,
                               xmax=1, xmin=0, ymax=1, ymin=0)
-    ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_cost, ls='--', alpha=0.5)
-    ax1.axhline(y=cost_now, xmax=1, xmin=xmin, c=c_cost, ls='--', alpha=0.5)
-    ax1.axhline(y=cost_y, xmax=1, xmin=xmin, c=c_cost, ls='--', alpha=0.5)
+    ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_cost, lw=0.5, ls='--',
+                alpha=0.5)
+    ax1.axhline(y=cost_now, xmax=1, xmin=xmin, c=c_cost, lw=0.5, ls='--',
+                alpha=0.5)
+    ax1.axhline(y=cost_y, xmax=1, xmin=xmin, c=c_cost, lw=0.5, ls='--',
+                alpha=0.5)
     # ax1.axvline(x=bpp[cut] / bpp[end], c='#999999', ls='--', alpha=0.7, lw=3)
 
-    ax12.set_ylabel('normalised cost', fontsize=24, color=c_cost)
-    ax12.tick_params(axis='y', labelsize=16, labelcolor=c_cost)
+    ax12.set_ylabel('normalized cost', fontsize=10, color=c_cost)
+    ax12.tick_params(axis='y', labelsize=8, labelcolor=c_cost, width=0.5)
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
     ax12.yaxis.set_minor_locator(AutoMinorLocator())
 
-    ax1.set_xlabel('normalised fraction of bike paths', fontsize=24)
+    ax1.set_xlabel('normalized fraction \n of bike paths m', fontsize=10)
     if titles:
-        ax1.set_title('Bikeability and Cost in {}'.format(city), fontsize=24)
+        ax1.set_title('Bikeability and Cost in {}'.format(city), fontsize=12)
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
-    ax1.tick_params(axis='x', labelsize=16)
     ax1.grid(False)
     ax12.grid(False)
 
     handles = ax1.get_legend_handles_labels()[0]
     handles.append(ax12.get_legend_handles_labels()[0][0])
     if legends:
-        ax1.legend(handles=handles, loc='lower right', fontsize=18)
+        ax1.legend(handles=handles, loc='lower right', fontsize=6)
 
     fig1.savefig(plot_folder + '{:}_ba_tc_mode_{:d}{:}.{}'
                  .format(save, rev, minmode, plot_format), format=plot_format,
@@ -845,8 +943,8 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax1ins = zoomed_inset_axes(ax1, 3.5, loc=1)
     x1, x2, y1, y2 = round(bpp_now - 0.05, 2), round(bpp_now + 0.05, 2), \
                      round(ba_now - 0.03, 2), min(round(ba_y + 0.03, 2), 1)
-    ax1ins.plot(bpp_cut, ba[:end], lw=2.5)
-    ax1ins.plot(bpp_now, ba_now, c=c_ba, ms=16, marker='D')
+    ax1ins.plot(bpp_cut, ba[:end], lw=0.75)
+    ax1ins.plot(bpp_now, ba_now, c=c_ba, ms=2, marker='D')
     xmax, ymax = coord_transf(bpp_now, max([ba_y, ba_now]),
                               xmin=x1, xmax=x2, ymin=y1, ymax=y2)
     ax1ins.axvline(x=bpp_now, ymax=ymax, ymin=0, c=c_ba, ls='--', alpha=0.5)
@@ -856,8 +954,8 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax1ins.set_xlim(x1, x2)
     ax1ins.set_ylim(y1, y2)
     mark_inset(ax1, ax1ins, loc1=2, loc2=3, fc="none", ec="0.7")
-    ax1ins.tick_params(axis='y', labelsize=16, labelcolor=c_ba)
-    ax1ins.tick_params(axis='x', labelsize=16)
+    ax1ins.tick_params(axis='y', labelsize=10, labelcolor=c_ba)
+    ax1ins.tick_params(axis='x', labelsize=10)
     ax1ins.yaxis.set_minor_locator(AutoMinorLocator())
     ax1ins.xaxis.set_minor_locator(AutoMinorLocator())
     mark_inset(ax1, ax1ins, loc1=2, loc2=3, fc="none", ec="0.7")
@@ -913,10 +1011,10 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax2.tick_params(axis='x', labelsize=16)
     ax2.set_xlabel('normalised fraction of bike paths', fontsize=24)
     if titles:
-        ax2.set_title('Number of Cyclists and Length on Street in {}'
-                      .format(city), fontsize=24)
+        ax2.set_title('Cyclists and Length on Street in {}'
+                      .format(city), fontsize=28)
     if legends:
-        ax2.legend([p1, p2], [l.get_label() for l in [p1, p2]], fontsize=18)
+        ax2.legend([p1, p2], [l.get_label() for l in [p1, p2]], fontsize=22)
     fig2.savefig(plot_folder + '{:}_trips_on_street_mode_{:d}{:}.{}'
                  .format(save, rev, minmode, plot_format), format=plot_format,
                  bbox_inches='tight')
@@ -925,9 +1023,9 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax3.set_xlim(0.0, 1.0)
     ax3.set_ylim(0.0, 1.0)
 
-    c_st = {'primary': '#000075', 'secondary': '#3cb44b',
-            'tertiary': '#469990', 'residential': '#f58231',
-            'bike paths': '#ffe119'}
+    c_st = {'primary': '#4d4d4d', 'secondary': '#666666',
+            'tertiary': '#808080', 'residential': '#999999',
+            'bike paths': '#0080c0'}
     m_st = {'primary': 'p', 'secondary': 'p', 'tertiary': 'p',
             'residential': 'p', 'bike paths': 'P'}
 
@@ -947,13 +1045,13 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax3.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax3.set_ylabel('length', fontsize=24)
     if titles:
-        ax3.set_title('Length on Street Type in {}'.format(city), fontsize=24)
+        ax3.set_title('Length on Street Type in {}'.format(city), fontsize=28)
     ax3.tick_params(axis='x', labelsize=16)
     ax3.tick_params(axis='y', labelsize=16)
     ax3.xaxis.set_minor_locator(AutoMinorLocator())
     ax3.yaxis.set_minor_locator(AutoMinorLocator())
     if legends:
-        ax3.legend(fontsize=24)
+        ax3.legend(fontsize=22)
     fig3.savefig(plot_folder + '{:}_len_on_street_mode_{:d}{:}.{}'
                  .format(save, rev, minmode, plot_format), format=plot_format,
                  bbox_inches='tight')
@@ -976,35 +1074,35 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
         ax4.plot(bpp_cut, [x / len_norm for x in len_by_st[:end]],
                  c=c_st[st], label='{}'.format(st), lw=2.5)
     """for st, len_by_st in bl_st.items():
-        ax4.plot(bpp_now, bl_st_now[st], ms=16, marker=m_st[st],  c=c_st[st])"""
+        ax4.plot(bpp_now, bl_st_now[st], ms=16, marker=m_st[st],  c=c_st[st])
+    """
 
-    # ax4.axvline(x=bpp[cut] / bpp[end], c='#999999', ls='--', alpha=0.7, lw=3)
+    ax4.axvline(x=bpp[cut] / bpp[end], c='#999999', ls='--', alpha=0.7, lw=3)
 
     ax4.set_xlabel('fraction of bike paths', fontsize=24)
     ax4.set_ylabel('length', fontsize=24)
     if titles:
         ax4.set_title('Length of Bike Paths along Streets in {}'.format(city),
-                      fontsize=14)
+                      fontsize=28)
     ax4.tick_params(axis='x', labelsize=16)
     ax4.tick_params(axis='y', labelsize=16)
     ax4.xaxis.set_minor_locator(AutoMinorLocator())
     ax4.yaxis.set_minor_locator(AutoMinorLocator())
     if legends:
-        ax4.legend(fontsize=18)
+        ax4.legend(fontsize=22)
     fig4.savefig(plot_folder + '{:}_len_bl_mode_{:d}{:}.{}'
                  .format(save, rev, minmode, plot_format), format=plot_format,
                  bbox_inches='tight')
 
     comp_st_driven = {st: [len_on_st[bpp_idx], trdt_st_now[st]]
                       for st, len_on_st in trdt_st.items()}
-    plot_barv_stacked(['Algorithm', 'P+S'], comp_st_driven, c_st,
+    plot_barv_stacked(['Algorithm', 'P+S'], comp_st_driven, c_st, width=0.3,
                       title='', save=plot_folder + '{:}_comp_st_driven_{:d}{:}'
-                      .format(save, rev, minmode), plot_format=plot_format)
+                      .format(save, rev, minmode), plot_format=plot_format,
+                      figsize=(0.75, 1.85))
 
-    diff_core = {}
-    diff_core['Bikeability'] = ba_improve
-    diff_core['# Trips'] = nos_improve
-    diff_core['Length'] = los_improve
+    diff_core = {'Bikeability': ba_improve, '# Trips': nos_improve,
+                 'Length': los_improve}
     c_diff_core = {'Bikeability': c_ba, '# Trips': c_nos,
                    'Length': c_los}
     plot_barv(diff_core, c_diff_core,
@@ -1042,7 +1140,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     if evo:
         plot_bp_evo(save=save, G=nxG_plot, edited_edges=edited_edges_nx,
                     bike_path_perc=bike_path_perc, cut=cut, ps=bpp_idx,
-                    node_size=ns, rev=rev, minmode=minmode,
+                    node_size=ns, rev=rev, minmode=minmode, titles=titles,
                     plot_folder=plot_folder, plot_format=plot_format)
 
     # plt.show()
@@ -1076,7 +1174,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
 
 
 def compare_modes(city, save, label, comp_folder, color, plot_folder,
-                  plot_format='png', labels=False, titles=False):
+                  plot_format='png', legends=False, titles=False):
     hf = h5py.File(comp_folder + 'comp_{}.hdf5'.format(save), 'r')
 
     bpp_now = hf['p+s']['bpp'][()]
@@ -1088,7 +1186,7 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
     ax1.set_xlabel('fraction of bike paths', fontsize=24)
     ax1.set_ylabel('bikeability', fontsize=24)
     if titles:
-        ax1.set_title('bikeability of {}'.format(city), fontsize=14)
+        ax1.set_title('Bikeability of {}'.format(city), fontsize=28)
     ax1.tick_params(axis='x', labelsize=16)
     ax1.tick_params(axis='y', labelsize=16)
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1100,7 +1198,7 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
     ax2.set_xlabel('normalised fraction of bike paths', fontsize=16)
     ax2.set_ylabel('integrated bikeability', fontsize=16)
     if titles:
-        ax2.set_title('Integrated Bikeability of {}'.format(city), fontsize=30)
+        ax2.set_title('Integrated Bikeability of {}'.format(city), fontsize=28)
     ax2.tick_params(axis='x', labelsize=16)
     ax2.tick_params(axis='y', labelsize=16)
     ax2.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1112,7 +1210,7 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
     ax3.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax3.set_ylabel('detour per cost', fontsize=24)
     if titles:
-        ax3.set_title('CBA of {}'.format(city), fontsize=30)
+        ax3.set_title('CBA of {}'.format(city), fontsize=28)
     ax3.tick_params(axis='x', labelsize=16)
     ax3.tick_params(axis='y', labelsize=16)
     ax3.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1136,7 +1234,7 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
 
     if titles:
         ax4.set_title('Cyclists and Length on Street in {}'.format(city),
-                      fontsize=30)
+                      fontsize=28)
     ax4.set_xlabel('fraction of bike paths', fontsize=24)
     ax4.tick_params(axis='x', labelsize=16)
     ax4.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1176,13 +1274,12 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
     l_keys_r = []
     l_keys_b = []
     for mode, l_key in ax4_hand.items():
-        if not mode[0]:
+        if int(mode[0]) == 0:
             l_keys_r.append(l_key)
         else:
             l_keys_b.append(l_key)
-
-    if labels:
-        if not l_keys_b:
+    if legends:
+        if l_keys_b:
             l_keys = [tuple(l_keys_r)] + [tuple(l_keys_b)]
             l_labels = ['Removing', 'Building']
         else:
@@ -1193,28 +1290,26 @@ def compare_modes(city, save, label, comp_folder, color, plot_folder,
         l_keys = []
         l_labels = []
 
-    if labels:
-        ax1.legend(l_keys, l_labels, numpoints=1, loc=4, fontsize=24,
-                   markerscale=2,
+    if legends:
+        ax1.legend(l_keys, l_labels, numpoints=1, loc=4, fontsize=22,
+                   # markerscale=2,
                    handler_map={tuple: HandlerTuple(ndivide=None)})
-        ax2.legend(l_keys, l_labels, numpoints=1, loc=4, fontsize=24,
-                   markerscale=2,
+        ax2.legend(l_keys, l_labels, numpoints=1, loc=4, fontsize=22,
+                   # markerscale=2,
                    handler_map={tuple: HandlerTuple(ndivide=None)})
-        ax3.legend(l_keys, l_labels, numpoints=1, loc=4, fontsize=24,
-                   markerscale=2,
+        ax3.legend(l_keys, l_labels, numpoints=1, loc=4, fontsize=22,
+                   # markerscale=2,
                    handler_map={tuple: HandlerTuple(ndivide=None)})
-        ax1.legend(loc=4, fontsize=24, markerscale=2)
-        ax2.legend(loc=4, fontsize=24, markerscale=2)
-        ax3.legend(numpoints=1, loc=4, fontsize=24, markerscale=2)
 
     l_keys.append(mlines.Line2D([], [], color='k', ms=16, marker='v',
                                 label='cyclists'))
     l_labels.append('cyclists')
     l_keys.append(
-        mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
+            mlines.Line2D([], [], color='k', ms=16, marker='8',
+                          label='length'))
     l_labels.append('length')
-    ax4.legend(l_keys, l_labels, numpoints=1, loc=1, fontsize=24,
-               markerscale=2,
+    ax4.legend(l_keys, l_labels, numpoints=1, loc=1, fontsize=22,
+               # markerscale=2,
                handler_map={tuple: HandlerTuple(ndivide=None)})
 
     fig1.savefig(plot_folder + '{}_1.{}'.format(save, plot_format),
@@ -1241,6 +1336,8 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
     hf_comp.attrs['city'] = city
 
     plt.rcdefaults()
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Arial']
 
     Path(comp_folder).mkdir(parents=True, exist_ok=True)
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
@@ -1354,13 +1451,13 @@ def plot_city(city, save, polygon_folder, input_folder, output_folder,
                 c[m_1] = c_rev[m[1]]
             else:
                 c[m_1] = c_norm[m[1]]
-        """label = {'{:d}{:}'.format(m[0], m[1]): 'Removing' if not m[0]
-        else 'Building' for m in modes}"""
-        label = {'00': 'Unweigthed', '01': 'Street Type Penalty',
-                 '02': 'Average Trip Length'}
+        label = {'{:d}{:}'.format(m[0], m[1]): 'Removing' if not m[0]
+        else 'Building' for m in modes}
+        """label = {'00': 'Unweigthed', '01': 'Street Type Penalty',
+                 '02': 'Average Trip Length'}"""
         compare_modes(city=city, save=save, color=c, label=label,
                       comp_folder=comp_folder, plot_folder=plot_folder,
-                      plot_format=plot_format)
+                      plot_format=plot_format, titles=titles, legends=legends)
 
 
 def compare_distributions(city, base, base_save, graph_folder, data_folder,
@@ -1375,12 +1472,14 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
 
     plt.rcdefaults()
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Arial']
 
     G = ox.load_graphml(filepath=graph_folder + '{}.graphml'.format(base_save),
                         node_type=int)
 
-    saves = {'Real Data': base_save, 'Homog. Demand': base_save + '_ata',
-             'Homog. Stations': base_save + '_homog'}
+    saves = {'Real Data': base_save, 'HDD': base_save + '_ata',
+             'HSD': base_save + '_homog'}
     dist_modes = [k for k, v in saves.items()]
 
     scale_x = calc_scale(base, dist_modes, saves, data_folder, mode)
@@ -1455,7 +1554,7 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     ax1.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax1.set_ylabel('bikeability', fontsize=24)
     if titles:
-        ax1.set_title('Comparison of Bikeabilities', fontsize=30)
+        ax1.set_title('Comparison of Bikeabilities', fontsize=28)
     ax1.tick_params(axis='x', labelsize=16)
     ax1.tick_params(axis='y', labelsize=16)
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1467,7 +1566,7 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     ax2.set_xlabel('scaled normalised fraction of bike paths', fontsize=24)
     ax2.set_ylabel('bikeability', fontsize=24)
     if titles:
-        ax2.set_title('Comparison of Scaled Bikeabilities', fontsize=24)
+        ax2.set_title('Comparison of Scaled Bikeabilities', fontsize=28)
     ax2.tick_params(axis='x', labelsize=16)
     ax2.tick_params(axis='y', labelsize=16)
     ax2.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1481,22 +1580,22 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
     ax3.set_ylim(0.0, 1.0)
     ax32.set_ylim(0.0, 1.0)
 
-    ax3.set_ylabel('cylcists on street', fontsize=24)
+    ax3.set_ylabel('length on street', fontsize=24)
     ax3.tick_params(axis='y', labelsize=16)
     ax3.yaxis.set_minor_locator(AutoMinorLocator())
 
-    ax32.set_ylabel('length on street', fontsize=24)
+    ax32.set_ylabel('cylcists on street', fontsize=24)
     ax32.tick_params(axis='y', labelsize=16)
     ax32.yaxis.set_minor_locator(AutoMinorLocator())
     if titles:
         ax3.set_title('Comaprison of Cyclists and Length on Street',
-                      fontsize=30)
+                      fontsize=28)
     ax3.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax3.tick_params(axis='x', labelsize=16)
     ax3.xaxis.set_minor_locator(AutoMinorLocator())
     ax3_hand = {}
 
-    cut = max(end.values())
+    # cut = max(end.values())
     for dist_mode in dist_modes:
         # bpp_m = [x / bpp_c[dist_mode][cut] for x in bpp_c[dist_mode][:cut]]
         bpp_scaled = [x * scale_x[dist_mode] for x in bpp[dist_mode]]
@@ -1505,31 +1604,31 @@ def compare_distributions(city, base, base_save, graph_folder, data_folder,
         ax2.plot(bpp_scaled, ba[dist_mode], color=color[dist_mode],
                  label='{}'.format(dist_mode), lw=2.5)
         space = round(len(bpp[dist_mode]) / 25)
-        ax3.plot(bpp[dist_mode], nos[dist_mode], ms=16, marker='v',
-                 markevery=space,
-                 color=color[dist_mode], lw=2.5)
-        ax32.plot(bpp[dist_mode], los[dist_mode], ms=16, marker='8',
-                  markevery=space,
-                  color=color[dist_mode], lw=2.5)
+        ax3.plot(bpp[dist_mode], los[dist_mode], ms=16, marker='8',
+                 markevery=space, color=color[dist_mode], lw=2.5)
+        ax32.plot(bpp[dist_mode], nos[dist_mode], ms=16, marker='v',
+                  markevery=space, color=color[dist_mode], lw=2.5)
         ax3_hand[dist_mode] = mlines.Line2D([], [], color=color[dist_mode])
 
     if legends:
-        ax1.legend(loc='lower right')
-        ax2.legend(loc='lower right')
+        ax1.legend(loc='lower right', fontsize=22)
+        ax2.legend(loc='lower right', fontsize=22)
         l_keys = [l_key for city, l_key in ax3_hand.items()]
         l_cities = [city for city, l_key in ax3_hand.items()]
     else:
         l_keys = []
         l_cities = []
     l_keys.append(
-        mlines.Line2D([], [], color='k', ms=16, marker='v', label='cyclists'))
+            mlines.Line2D([], [], color='k', ms=16, marker='v',
+                          label='cyclists'))
     l_cities.append('cyclists')
     l_keys.append(
-        mlines.Line2D([], [], color='k', ms=16, marker='8', label='length'))
+            mlines.Line2D([], [], color='k', ms=16, marker='8',
+                          label='length'))
     l_cities.append('length')
 
     ax3.legend(l_keys, l_cities, numpoints=1,
-               handler_map={tuple: HandlerTuple(ndivide=None)}, fontsize=24)
+               handler_map={tuple: HandlerTuple(ndivide=None)}, fontsize=22)
 
     save_plot = '{}{}_distr_comp_'.format(plot_folder, base_save)
     fig1.savefig(save_plot + 'ba_unscaled_{:d}{:}.{}'
@@ -1584,6 +1683,8 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
 
     plt.rcdefaults()
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Arial']
 
     rev = mode[0]
     minmode = mode[1]
@@ -1640,7 +1741,7 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax1.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax1.set_ylabel('bikeability', fontsize=24)
     if titles:
-        ax1.set_title('Comparison of Bikeabilities', fontsize=14)
+        ax1.set_title('Comparison of Bikeabilities', fontsize=28)
     ax1.tick_params(axis='x', labelsize=16)
     ax1.tick_params(axis='y', labelsize=16)
     ax1.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1652,7 +1753,7 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax2.set_xlabel('scaled normalised fraction of bike paths', fontsize=24)
     ax2.set_ylabel('bikeability', fontsize=24)
     if titles:
-        ax2.set_title('Comparison of Scaled Bikeabilities', fontsize=14)
+        ax2.set_title('Comparison of Scaled Bikeabilities', fontsize=28)
     ax2.tick_params(axis='x', labelsize=16)
     ax2.tick_params(axis='y', labelsize=16)
     ax2.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1664,7 +1765,7 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax3.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax3.set_ylabel('integrated bikeability', fontsize=24)
     if titles:
-        ax3.set_title('Comparison of Integrated Bikeabilities', fontsize=14)
+        ax3.set_title('Comparison of Integrated Bikeabilities', fontsize=28)
     ax3.tick_params(axis='x', labelsize=16)
     ax3.tick_params(axis='y', labelsize=16)
     ax3.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1678,16 +1779,16 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     ax4.set_ylim(0.0, 1.0)
     ax42.set_ylim(0.0, 1.0)
 
-    ax4.set_ylabel('cyclists on street', fontsize=24)
+    ax4.set_ylabel('length on street', fontsize=24)
     ax4.tick_params(axis='y', labelsize=16)
     ax4.yaxis.set_minor_locator(AutoMinorLocator())
 
-    ax42.set_ylabel('length on street', fontsize=24)
+    ax42.set_ylabel('cyclists on street', fontsize=24)
     ax42.tick_params(axis='y', labelsize=16)
     ax42.yaxis.set_minor_locator(AutoMinorLocator())
 
     if titles:
-        ax4.set_title('Comaprison of Trips and Length on Street', fontsize=14)
+        ax4.set_title('Comaprison of Trips and Length on Street', fontsize=28)
     ax4.set_xlabel('normalised fraction of bike paths', fontsize=24)
     ax4.tick_params(axis='x', labelsize=16)
     ax4.xaxis.set_minor_locator(AutoMinorLocator())
@@ -1705,10 +1806,9 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
         ax3.plot(bpp[city], bikeab, color=color[city],
                  label='{}'.format(city), lw=2.5)
         space = round(len(bpp[city]) / 25)
-
-        ax4.plot(bpp[city], nos[city], ms=16, marker='v', markevery=space,
+        ax4.plot(bpp[city], los[city], ms=16, marker='8', markevery=space,
                  color=color[city], lw=2.5)
-        ax42.plot(bpp[city], los[city], ms=16, marker='8', markevery=space,
+        ax42.plot(bpp[city], nos[city], ms=16, marker='v', markevery=space,
                   color=color[city], lw=2.5)
         ax4_hand[city] = mlines.Line2D([], [], color=color[city])
 
@@ -1726,11 +1826,12 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
     l_cities.append('length')
 
     if legends:
-        ax1.legend(loc='lower right')
-        ax2.legend(loc='lower right')
-        ax3.legend(loc='lower right')
-    ax4.legend(l_keys, l_cities, numpoints=1,
-               handler_map={tuple: HandlerTuple(ndivide=None)}, fontsize=24)
+        ax1.legend(loc='lower right', fontsize=22)
+        ax2.legend(loc='lower right', fontsize=22)
+        ax3.legend(loc='lower right', fontsize=22)
+    ax4.legend(l_keys, l_cities, numpoints=1, loc=1,
+               handler_map={tuple: HandlerTuple(ndivide=None)},
+               fontsize=18).set_zorder(33)
 
     save_plot = '{}{}_'.format(plot_folder, saves[base_city])
     fig1.savefig(save_plot + 'ba_unscaled_{:d}{:}.{}'
@@ -1785,4 +1886,3 @@ def compare_cities(cities, saves, mode, color, data_folder, plot_folder,
 
     plt.close('all')
     # plt.show()
-

@@ -1,26 +1,31 @@
 """
-This module includes all necessary functions for the plotting functionality.
+This module includes all necessary helper functions for the plotting
+functionality.
 """
 import h5py
 import pyproj
 import numpy as np
 import networkx as nx
-import osmnx as ox
 import shapely.ops as ops
 import cartopy.crs as ccrs
 import cartopy.geodesic as cgeo
 from math import ceil, floor, log10
 import matplotlib.pyplot as plt
-from matplotlib.ticker import AutoMinorLocator, MaxNLocator
+from matplotlib.ticker import AutoMinorLocator
 from matplotlib.colors import to_rgba, LogNorm
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from functools import partial
 from copy import deepcopy
 from .algorithm_helper import get_street_type_cleaned, get_street_length
 
 
-
 def magnitude(x):
+    """
+    Calculate the magnitude of x.
+    :param x: Number to calculate the magnitude of.
+    :type x: numeric (e.g. float or int)
+    :return: Magnitude of x
+    :rtype: int
+    """
     return int(floor(log10(x)))
 
 
@@ -58,17 +63,17 @@ def coord_transf(x, y, xmin=0.0, xmax=1.0, ymin=0.0, ymax=1.0):
     """
     Transfers the coordinates from data to relative coordiantes.
     :param x: x data coordinate
-    :type x: float
+    :type x: float or int
     :param y: y data coordinate
-    :type y: float
+    :type y: float or int
     :param xmin: min value of x axis
-    :type xmin: float
+    :type xmin: float or int
     :param xmax: max value of x axis
-    :type xmax: float
+    :type xmax: float or int
     :param ymin: min value of y axis
-    :type ymin: float
+    :type ymin: float or int
     :param ymax: max value of y axis
-    :type ymax: float
+    :type ymax: float or int
     :return: transformed x, y coordinates
     :rtype: float, float
     """
@@ -134,7 +139,7 @@ def total_distance_traveled_list(total_dist, total_dist_now, rev):
     # On bike paths
     on_bike = [i['total length on bike paths'] for i in total_dist]
     dist['bike paths'] = [x / on_all[idx] for idx, x in enumerate(on_bike)]
-    dist_now['bike paths'] = total_dist_now['total length on bike paths'] /\
+    dist_now['bike paths'] = total_dist_now['total length on bike paths'] / \
                              on_all_now
 
     if not rev:
@@ -149,7 +154,7 @@ def sum_total_cost(cost, cost_now, rev):
     :param cost: List of costs per step
     :type cost: list
     :param cost_now: Cost of the current state.
-    :type cost_now: float
+    :type cost_now: float  or int
     :param rev: Reversed algorithm used True/False
     :type rev: bool
     :return: Summed and renormalised cost and renormalised cost for the
@@ -166,11 +171,15 @@ def sum_total_cost(cost, cost_now, rev):
 
 def get_end(tdt, tdt_now, rev):
     """
-
-    :param tdt:
-    :param tdt_now:
-    :param rev:
-    :return:
+    Returns the index where the bikeability reaches 1.
+    :param tdt: total distance traveled
+    :type tdt: dict
+    :param tdt_now: total distance traveled for current state
+    :type tdt_now: dict
+    :param rev: Reversed algorithm used True/False
+    :type rev: bool
+    :return: Index where bikeability reaches 1
+    :rtype: int
     """
     tdt, tdt_now = total_distance_traveled_list(tdt, tdt_now, rev)
     ba = [1 - (i - min(tdt['all'])) / (max(tdt['all']) - min(tdt['all']))
@@ -179,6 +188,13 @@ def get_end(tdt, tdt_now, rev):
 
 
 def get_street_type_ratio(G):
+    """
+    Gets the ratios for the different street types in the given graph.
+    :param G: Street network.
+    :type G: osmnx graph
+    :return: Street type ratio in dict keyed by street type
+    :rtype: dict
+    """
     G = G.to_undirected()
     G = nx.Graph(G)
     st_len = {'primary': 0, 'secondary': 0, 'tertiary': 0, 'residential': 0}
@@ -193,6 +209,18 @@ def get_street_type_ratio(G):
 
 
 def calc_polygon_area(polygon, remove=None, unit='sqkm'):
+    """
+    Calculates the area of a given lat/long Polygon.
+    :param polygon: Polygon to caculate the area of
+    :type polygon: shapely polygon
+    :param remove: Polygons inside the orignal polygon to exclude from the
+    area calculation
+    :type remove: list of shapely polygons
+    :param unit: Unit in which the area is returned km^2 = 'sqkm' or m^2 =
+    'sqm'
+    :type unit: str
+    :return:
+    """
     if (not isinstance(remove, list)) ^ (remove is None):
         remove = [remove]
     geom_area = ops.transform(
@@ -208,14 +236,14 @@ def calc_polygon_area(polygon, remove=None, unit='sqkm'):
     if remove is not None:
         for p in remove:
             a_r = ops.transform(
-                partial(
-                        pyproj.transform,
-                        pyproj.Proj('EPSG:4326'),
-                        pyproj.Proj(
-                                proj='aea',
-                                lat_1=p.bounds[1],
-                                lat_2=p.bounds[3])),
-                p)
+                    partial(
+                            pyproj.transform,
+                            pyproj.Proj('EPSG:4326'),
+                            pyproj.Proj(
+                                    proj='aea',
+                                    lat_1=p.bounds[1],
+                                    lat_2=p.bounds[3])),
+                    p)
             remove_area += a_r.area
 
     if unit == 'sqkm':
@@ -225,6 +253,21 @@ def calc_polygon_area(polygon, remove=None, unit='sqkm'):
 
 
 def calc_scale(base_city, cities, saves, comp_folder, mode):
+    """
+    Calculates the x scaling for city comparison.
+    :param base_city: Base city of the caluclation
+    :type base_city: str
+    :param cities: List of cities to calculate
+    :type cities: list
+    :param saves: Dictionary mapping cities to save abbreviations
+    :type saves: dict
+    :param comp_folder: Path to the folder where the comparison data is stored
+    :type comp_folder: str
+    :param mode: Mode of the simulation
+    :type mode: str
+    :return: Dictionary of scale factors keyed by city
+    :rtype: dict
+    """
     blp = {}
     ba = {}
 
@@ -233,7 +276,7 @@ def calc_scale(base_city, cities, saves, comp_folder, mode):
 
     for city in cities:
         save = saves[city]
-        data = h5py.File(comp_folder+'comp_{}.hdf5'.format(save), 'r')
+        data = h5py.File(comp_folder + 'comp_{}.hdf5'.format(save), 'r')
         blp[city] = data['algorithm'][mode]['bpp'][()]
         ba[city] = data['algorithm'][mode]['ba'][()]
 
@@ -276,6 +319,21 @@ def calc_scale(base_city, cities, saves, comp_folder, mode):
 
 
 def get_edge_color(G, edges, attr, color):
+    """
+    Return edge color list for G, edges have the given color if they are
+    part of the edges list and therefore hav the given attribute, otherwise
+    they have the color '#999999'.
+    :param G: Graph
+    :type G: networkx graph
+    :param edges: List of edges which have the attribute
+    :type edges: list
+    :param attr: Attribute for the coloring (e.g. bike path)
+    :type attr: int, float or str
+    :param color: Color ift edge has attribute
+    :type color: color (e.g. hexcode)
+    :return: List of edge colors for graph G.
+    :rtype: list
+    """
     nx.set_edge_attributes(G, False, attr)
     for edge in edges:
         G[edge[0]][edge[1]][0][attr] = True
@@ -285,12 +343,42 @@ def get_edge_color(G, edges, attr, color):
 
 
 def get_edge_color_st(G, colors):
+    """
+     Return edge color list, to color the edges depending on their street
+     type.
+    :param G: Graph
+    :type G: osmnx graph
+    :param colors: Dictionary for the street type colors
+    :type colors: dict
+    :return: List of edge colors for graph G.
+    :rtype: list
+    """
     return [colors[get_street_type_cleaned(G, e, multi=True)]
             for e in G.edges()]
 
 
 def plot_barh(data, colors, save, figsize=None, plot_format='png',
               x_label='', title='', dpi=150):
+    """
+    Plot a horizontal bar plot.
+    :param data: Data to plot as dictionary.
+    :type data: dict
+    :param colors: Colors for the data
+    :type colors: dict
+    :param save: Save location without format
+    :type save: str
+    :param figsize: Size of figure (width, height)
+    :type figsize: tuple
+    :param plot_format: Plotformat (e.g. png, svg)
+    :type plot_format: str
+    :param x_label: Label for the x axis
+    :type x_label: str
+    :param title: Title of the plot
+    :type title: str
+    :param dpi: dpi of the plot
+    :type dpi: int
+    :return: None
+    """
     if figsize is None:
         figsize = [16, 9]
     keys = list(data.keys())
@@ -306,12 +394,13 @@ def plot_barh(data, colors, save, figsize=None, plot_format='png',
         y = y_pos[idx]
         if values[idx] > 0.05 * max_value:
             r, g, b, _ = color
-            text_color = 'white' if (r*0.299 + g*0.587 + b*0.114) < 0.25 \
+            text_color = 'white' if (r * 0.299 + g * 0.587 + b * 0.114) < \
+                                    0.25 \
                 else 'black'
             ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center',
                     va='center', color=text_color, fontsize=16)
         else:
-            ax.text(2*values[idx], y, '{:3.2f}'.format(values[idx]),
+            ax.text(2 * values[idx], y, '{:3.2f}'.format(values[idx]),
                     ha='center', va='center', color='darkgrey', fontsize=16)
 
     ax.set_yticks(y_pos)
@@ -321,12 +410,32 @@ def plot_barh(data, colors, save, figsize=None, plot_format='png',
     ax.set_xlabel(x_label)
     ax.set_title(title)
 
-    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
+    plt.savefig(save+'.{}'.format(plot_format), format=plot_format,
                 bbox_inches='tight')
 
 
 def plot_barh_stacked(data, stacks, colors, save, figsize=None,
                       plot_format='png', title='', dpi=150, legend=False):
+    """
+    Plot a stacked horizontal bar plot.
+    :param data: Data to plot as dictionary.
+    :type data: dict
+    :param colors: Colors for the data
+    :type colors: dict
+    :param save: Save location without format
+    :type save: str
+    :param figsize: Size of figure (width, height)
+    :type figsize: tuple
+    :param plot_format: Plotformat (e.g. png, svg)
+    :type plot_format: str
+    :param title: Title of the plot
+    :type title: str
+    :param dpi: dpi of the plot
+    :type dpi: int
+    :param legend: If legend should be plotted or not
+    :type legend: bool
+    :return: None
+    """
     if figsize is None:
         figsize = [16, 9]
 
@@ -348,7 +457,7 @@ def plot_barh_stacked(data, stacks, colors, save, figsize=None,
         xcenters = starts + widths / 2
 
         r, g, b, _ = color
-        text_color = 'white' if (r*0.299 + g*0.587 + b*0.114) < 0.25 \
+        text_color = 'white' if (r * 0.299 + g * 0.587 + b * 0.114) < 0.25 \
             else 'black'
         for y, (x, c) in enumerate(zip(xcenters, widths)):
             if c != 0.0:
@@ -364,6 +473,32 @@ def plot_barh_stacked(data, stacks, colors, save, figsize=None,
 
 def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
               title='', ymin=-0.1, ymax=0.7, xticks=True, dpi=150):
+    """
+    Plot a vertical bar plot.
+    :param data: Data to plot as dictionary.
+    :type data: dict
+    :param colors: Colors for the data
+    :type colors: dict
+    :param save: Save location without format
+    :type save: str
+    :param figsize: Size of figure (width, height)
+    :type figsize: tuple
+    :param plot_format: Plotformat (e.g. png, svg)
+    :type plot_format: str
+    :param y_label: Label for the x axis
+    :type y_label: str
+    :param title: Title of the plot
+    :type title: str
+    :param ymin: Minimal y value for axis
+    :type ymin: float
+    :param ymax: Maximal y value for axis
+    :type ymax: float
+    :param xticks: Plot x ticks or not
+    :type xticks: bool
+    :param dpi: dpi of the plot
+    :type dpi: int
+    :return: None
+    """
     if figsize is None:
         figsize = [10, 10]
     keys = list(data.keys())
@@ -402,14 +537,41 @@ def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
 
 def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
                       width=0.8, figsize=None, dpi=150, plot_format='png'):
+    """
+    Plot a stacked vertical bar plot
+    :param labels: Labels for the bars
+    :type labels: list
+    :param data: Data to plot as dictionary.
+    :type data: dict
+    :param colors: Colors for the data
+    :type colors: dict
+    :param title: Title of the plot
+    :type title: str
+    :param ylabel: Label for y axis
+    :type ylabel: str
+    :param save: Save location without format
+    :type save: str
+    :param width: Width of bars
+    :type width: float
+    :param figsize: Size of figure (width, height)
+    :type figsize: tuple
+    :param dpi: dpi of the plot
+    :type dpi: int
+    :param plot_format: Plotformat (e.g. png, svg)
+    :type plot_format: str
+    :return:
+    """
     if figsize is None:
         figsize = [10, 12]
 
     stacks = list(data.keys())
     values = list(data.values())
     x_pos = np.arange((len(labels)))
+    x_pos = [x / 2 for x in x_pos]
 
     fig, ax = plt.subplots(dpi=dpi, figsize=figsize)
+    for axis in ['top', 'bottom', 'left', 'right']:
+        ax.spines[axis].set_linewidth(0.5)
     ax.set_ylim(0.0, 1.0)
     bottom = np.zeros(len(values[0]))
     for idx in range(len(stacks)):
@@ -421,36 +583,58 @@ def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
                 y = bottom[v_idx] + v / 2
                 x = x_pos[v_idx]
                 r, g, b, _ = color
-                text_color = 'white' if (r*0.299 + g*0.587 + b*0.114) < 0.25 \
+                text_color = 'white' if (
+                                                r * 0.299 + g * 0.587 +
+                                                b * 0.114) < 0.25 \
                     else 'black'
                 ax.text(x, y, '{:3.2f}'.format(v), ha='center',
-                        va='center', color=text_color, fontsize=16)
+                        va='center', color=text_color, fontsize=6)
         bottom = [sum(x) for x in zip(bottom, values[idx])]
         # print(stacks[idx], values[idx])
 
-    ax.set_ylabel(ylabel, fontsize=24)
+    ax.set_ylabel(ylabel, fontsize=8)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.set_xticks(x_pos)
     ax.set_xticklabels(labels)
-    ax.tick_params(axis='y', labelsize=24)
-    ax.tick_params(axis='x', labelsize=24)
-    ax.set_title(title, fontsize=24)
+    ax.tick_params(axis='y', labelsize=8)
+    ax.tick_params(axis='x', labelsize=7)
+    ax.set_title(title, fontsize=12)
 
-    plt.savefig(save+'.{}'.format(plot_format), format=plot_format,
+    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
                 bbox_inches='tight')
 
 
-def plot_histogram(data, save_path, bins=None, cumulative=False, density=False,
-                   xlabel='', ylabel='', xlim=None, xaxis=True, xticks=None,
-                   plot_format='png', dpi=150):
+def plot_histogram(data, save_path, bins=None, cumulative=False,
+                   density=False, xlabel='', ylabel='', xlim=None,
+                   xaxis=True, xticks=None, cm=None, plot_format='png',
+                   dpi=150, figsize=(4, 4)):
+    """
+    Plot a histogram
+    :param data:
+    :param save_path:
+    :param bins:
+    :param cumulative:
+    :param density:
+    :param xlabel:
+    :param ylabel:
+    :param xlim:
+    :param xaxis:
+    :param xticks:
+    :param cm:
+    :param plot_format:
+    :param dpi:
+    :param figsize:
+    :return:
+    """
     max_d = max(data)
     min_d = min(data)
     r = magnitude(max_d)
 
-    fig, ax = plt.subplots(figsize=(12, 10), dpi=dpi)
-    ax.set_xlim(left=0.0, right=round(max_d + 0.1 * max_d, -(r - 1)))
+    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
     if xlim is not None:
         ax.set_xlim(left=xlim[0], right=xlim[1])
+    else:
+        ax.set_xlim(left=0.0, right=round(max_d + 0.1 * max_d, -(r - 1)))
     if bins is None:
         if max_d == min_d:
             bins = 1
@@ -458,11 +642,17 @@ def plot_histogram(data, save_path, bins=None, cumulative=False, density=False,
             bins = 50
         else:
             bins = ceil((max_d - min_d) / (10 ** (r - 2)))
-    ax.hist(data, bins=bins, align='mid', cumulative=cumulative,
-            density=density)
-    ax.set_xlabel(xlabel, fontsize=24)
-    ax.set_ylabel(ylabel, fontsize=24)
-    ax.tick_params(axis='both', labelsize=16)
+    if cm is not None:
+        n, b, patches = ax.hist(data, bins=bins, align='mid', color='green',
+                                cumulative=cumulative, density=density)
+        for i, p in enumerate(patches):
+            plt.setp(p, 'facecolor', cm(i / bins))
+    else:
+        ax.hist(data, bins=bins, align='mid', cumulative=cumulative,
+                density=density)
+    ax.set_xlabel(xlabel, fontsize=10)
+    ax.set_ylabel(ylabel, fontsize=8)
+    ax.tick_params(axis='both', labelsize=8)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     if xticks is not None:
         ax.set_xticks(list(xticks.keys()))
@@ -477,36 +667,11 @@ def plot_histogram(data, save_path, bins=None, cumulative=False, density=False,
                 bbox_inches='tight')
 
 
-def plot_matrix(city, df, plot_folder, save, cmap=None, figsize=None,
-                dpi=150, plot_format='png', relative=False):
-    if cmap is None:
-        cmap = plt.cm.get_cmap('viridis_r')
-    if figsize is None:
-        figsize = [10, 10]
-
-    if relative:
-        dfplot = df.divide(df.max().max())
-    else:
-        dfplot = df
-    fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
-    c = ax.pcolor(dfplot, cmap=cmap, norm=LogNorm(vmin=dfplot.min().min(),
-                                                  vmax=dfplot.max().max()))
-    divider = make_axes_locatable(ax)
-    cax = divider.append_axes('bottom', size="5%", pad=0.05)
-    plt.colorbar(c, cax=cax, orientation='horizontal')
-    ax.tick_params(axis='x', which='both', bottom=False, top=False,
-                   labelbottom=False)
-    ax.tick_params(axis='y', which='both', left=False, right=False,
-                   labelleft=False)
-    cax.tick_params(axis='x', labelsize=16)
-    cax.set_xlabel('cyclists per trip', fontsize=18)
-
-    # ax.set_title('Trips in {}'.format(city), fontsize='x-large')
-    fig.savefig('{}{}_od_matrix.{}'.format(plot_folder, save, plot_format),
-                format=plot_format, bbox_inches='tight')
-
-# stackoverflow.com/questions/32333870/
-# how-can-i-show-a-km-ruler-on-a-cartopy-matplotlib-plot
+# The functions _axes_to_lonlat, _upper_bound, _distance_along_line,
+# _distance_along_line and scale_bar are from a Stack Overflow question
+# (https://stackoverflow.com/a/50674451) and were posted there by the user
+# mephistolotl (https://stackoverflow.com/users/2676166/mephistolotl) under
+# CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/legalcode).
 def _axes_to_lonlat(ax, coords):
     """(lon, lat) from axes coordinates."""
     display = ax.transAxes.transform(coords)
@@ -517,19 +682,17 @@ def _axes_to_lonlat(ax, coords):
 
 
 def _upper_bound(start, direction, distance, dist_func):
-    """A point farther than distance from start, in the given direction.
-
+    """
+    A point farther than distance from start, in the given direction.
     It doesn't matter which coordinate system start is given in, as long
     as dist_func takes points in that coordinate system.
 
-    Args:
-        start:     Starting point for the line.
-        direction  Nonzero (2, 1)-shaped array, a direction vector.
-        distance:  Positive distance to go past.
-        dist_func: A two-argument function which returns distance.
-
-    Returns:
-        Coordinates of a point (a (2, 1)-shaped NumPy array).
+    :param start:     Starting point for the line.
+    :param direction  Nonzero (2, 1)-shaped array, a direction vector.
+    :param distance:  Positive distance to go past.
+    :param dist_func: A two-argument function which returns distance.
+    :return: Coordinates of a point (a (2, 1)-shaped NumPy array).
+    :rtype numpy array
     """
     if distance <= 0:
         raise ValueError(f"Minimum distance is not positive: {distance}")
@@ -555,15 +718,12 @@ def _distance_along_line(start, end, distance, dist_func, tol):
     It doesn't matter which coordinate system start is given in, as long
     as dist_func takes points in that coordinate system.
 
-    Args:
-        start:     Starting point for the line.
-        end:       Outer bound on point's location.
-        distance:  Positive distance to travel.
-        dist_func: Two-argument function which returns distance.
-        tol:       Relative error in distance to allow.
-
-    Returns:
-        Coordinates of a point (a (2, 1)-shaped NumPy array).
+    :param start:     Starting point for the line.
+    :param end:       Outer bound on point's location.
+    :param distance:  Positive distance to travel.
+    :param dist_func: Two-argument function which returns distance.
+    :param tol:       Relative error in distance to allow.
+    :return: Coordinates of a point (a (2, 1)-shaped NumPy array).
     """
     initial_distance = dist_func(start, end)
     if initial_distance < distance:
@@ -593,15 +753,13 @@ def _distance_along_line(start, end, distance, dist_func, tol):
 def _point_along_line(ax, start, distance, angle=0, tol=0.01):
     """Point at a given distance from start at a given angle.
 
-    Args:
-        ax:       CartoPy axes.
-        start:    Starting point for the line in axes coordinates.
-        distance: Positive physical distance to travel.
-        angle:    Anti-clockwise angle for the bar, in radians. Default: 0
-        tol:      Relative error in distance to allow. Default: 0.01
+    :param ax:       CartoPy axes.
+    :param start:    Starting point for the line in axes coordinates.
+    :param distance: Positive physical distance to travel.
+    :param angle:    Anti-clockwise angle for the bar, in radians. Default: 0
+    :param tol:      Relative error in distance to allow. Default: 0.01
 
-    Returns:
-        Coordinates of a point (a (2, 1)-shaped NumPy array).
+    :return: Coordinates of a point (a (2, 1)-shaped NumPy array).
     """
     # Direction vector of the line in axes coordinates.
     direction = np.array([np.cos(angle), np.sin(angle)])
@@ -632,23 +790,19 @@ def scale_bar(ax, location, length, metres_per_unit=1000, unit_name='km',
     slightly different angles for unknown reasons. To work around this,
     override the 'rotation' keyword argument with text_kwargs.
 
-    Args:
-        ax:              CartoPy axes.
-        location:        Position of left-side of bar in axes coordinates.
-        length:          Geodesic length of the scale bar.
-        metres_per_unit: Number of metres in the given unit. Default: 1000
-        unit_name:       Name of the given unit. Default: 'km'
-        tol:             Allowed relative error in length of bar. Default: 0.01
-        angle:           Anti-clockwise rotation of the bar.
-        color:           Color of the bar and text. Default: 'black'
-        linewidth:       Same argument as for plot.
-        text_offset:     Perpendicular offset for text in axes coordinates.
-                         Default: 0.005
-        ha:              Horizontal alignment. Default: 'center'
-        va:              Vertical alignment. Default: 'bottom'
-        **plot_kwargs:   Keyword arguments for plot, overridden by **kwargs.
-        **text_kwargs:   Keyword arguments for text, overridden by **kwargs.
-        **kwargs:        Keyword arguments for both plot and text.
+    :param ax:              CartoPy axes.
+    :param location:        Position of left-side of bar in axes coordinates.
+    :param length:          Geodesic length of the scale bar.
+    :param metres_per_unit: Number of metres in the given unit. Default: 1000
+    :param unit_name:       Name of the given unit. Default: 'km'
+    :param tol:             Allowed relative error in length of bar. Def: 0.01
+    :param angle:           Anti-clockwise rotation of the bar.
+    :param color:           Color of the bar and text. Default: 'black'
+    :param linewidth:       Same argument as for plot.
+    :param text_offset:     Perpendicular offset for text in axes coordinates.
+                            Def: 0.005
+    :param ha:              Horizontal alignment. Default: 'center'
+    :param va:              Vertical alignment. Default: 'bottom'
     """
     # Setup kwargs, update plot_kwargs and text_kwargs.
     if plot_kwargs is None:

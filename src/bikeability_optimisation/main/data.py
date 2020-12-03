@@ -1,8 +1,14 @@
+"""
+This module includes all necessary functions for the data preparation and
+handling.
+"""
 import h5py
+import matplotlib.pyplot as plt
 from pathlib import Path
 from pyproj import Proj, transform
 from ..helper.data_helper import *
-from .plot import plot_matrix, plot_station_degree, plot_used_area
+from .plot import plot_station_degree, plot_used_area, plot_used_nodes, \
+    plot_od_matrix
 
 
 def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
@@ -99,10 +105,10 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
 
         # Colour all used nodes
         print('Plotting used nodes on graph given by bbox.')
-        plot_used_nodes(G_b, trips_b, stations_b, city_name,
-                        '{}_bbox'.format(save_name),
-                        plot_save_folder=plot_folder,
-                        width=plot_bbox_size[0], height=plot_bbox_size[1])
+        plot_used_nodes(save='{}_bbox'.format(save_name), G=G_b,
+                        trip_nbrs=trips_b, stations=stations_b,
+                        plot_folder=plot_folder,
+                        figsize=(plot_bbox_size[0], plot_bbox_size[1]))
         fig, ax = ox.plot_graph(G_b, figsize=(20, 20), dpi=300, close=False,
                                 show=False)
         fig.suptitle('Graph used for {}'.format(city_name.capitalize()),
@@ -134,10 +140,10 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
 
         # Colour all used nodes
         print('Plotting used nodes on complete city.')
-        plot_used_nodes(G_c, trips_c, stations_c, city_name,
-                        '{}_city'.format(save_name),
-                        plot_save_folder=plot_folder,
-                        width=plot_city_size[0], height=plot_city_size[1])
+        plot_used_nodes(save='{}_city'.format(save_name), G=G_c,
+                        trip_nbrs=trips_c, stations=stations_c,
+                        plot_folder=plot_folder,
+                        figsize=(plot_city_size[0], plot_city_size[1]))
         fig, ax = ox.plot_graph(G_c, figsize=(20, 20), dpi=300, close=False,
                                 show=False)
         fig.suptitle('Graph used for {}'.format(city_name.capitalize()),
@@ -170,9 +176,9 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
 
         # Colour all used nodes
         print('Plotting used nodes in polygon.')
-        plot_used_nodes(G, trips, stations, city_name, save_name,
-                        plot_save_folder=plot_folder,
-                        width=plot_size[0], height=plot_size[1])
+        plot_used_nodes(save=save_name, G=G, trip_nbrs=trips,
+                        stations=stations, plot_folder=plot_folder,
+                        figsize=(plot_size[0], plot_size[1]))
         fig, ax = ox.plot_graph(G, figsize=(20, 20), dpi=300, close=False,
                                 show=False)
         fig.suptitle('Graph used for {}'.format(city_name.capitalize()),
@@ -271,8 +277,8 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
 
     df1 = data_to_matrix(stations, trips)
     print('Plotting OD Matrix.')
-    plot_matrix(city, df1, plot_folder, save, cmap=None, figsize=None,
-                dpi=dpi, plot_format=plot_format)
+    plot_od_matrix(city, df1, plot_folder, save, cmap=None, figsize=None,
+                   dpi=dpi, plot_format=plot_format)
 
     print('Plotting data.')
     G, degree, indegree, outdegree, imbalance = matrix_to_graph(df1)
@@ -289,8 +295,8 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
         stations_new = sort_clustering(G)
         df2 = data_to_matrix(stations_new, trips)
         print('Plotting clustered OD Matrix.')
-        plot_matrix(city, df2, plot_folder, save=save+'_cluster',
-                    figsize=None, dpi=150, plot_format=plot_format)
+        plot_od_matrix(city, df2, plot_folder, save=save+'_cluster',
+                       figsize=None, dpi=150, plot_format=plot_format)
 
         H = matrix_to_graph(df2, data=False)
 

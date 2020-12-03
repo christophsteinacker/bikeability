@@ -1,11 +1,11 @@
 """
-This module includes all necessary functions for the main algorithm.
+This module includes all necessary helper functions for the main algorithm.
 """
 import networkit as nk
 import networkx as nx
 import numpy as np
 import time
-from .logger_helper import log_to_file
+from .logging_helper import log_to_file
 
 
 def get_street_type(G, edge, nk2nx=None, multi=False):

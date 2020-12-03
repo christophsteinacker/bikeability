@@ -7,7 +7,6 @@ import osmnx as ox
 from copy import deepcopy
 from pathlib import Path
 from ..helper.algorithm_helper import *
-from ..helper.logger_helper import *
 
 
 def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
