@@ -119,14 +119,13 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
         next_log = log_at[log_idx]
         if (rev and bike_path_perc[-1] > next_log) ^ \
                 (not rev and bike_path_perc[-1] < next_log):
-            log_to_file(file=logpath, txt='{0:}: reached {1:3.2f} BLP'
-                        .format(city, next_log), stamptime=time.localtime(),
-                        start=starttime, end=time.time(), stamp=True,
-                        difference=True)
-            loc = output_folder+'{0:}_data_mode_{1:d}{2:}.hdf5'\
-                .format(save, rev, minmode)
+            log_to_file(file=logpath,
+                        txt=f'{city}: reached {next_log:3.2f} BLP',
+                        stamptime=time.localtime(), start=starttime,
+                        end=time.time(), stamp=True, difference=True)
+            loc = f'{output_folder}{save}_data_mode_{rev:d}{minmode}.hdf5'
             hf = h5py.File(loc, 'a')
-            grp = hf.create_group('{:02d}'.format(log_idx+1))
+            grp = hf.create_group(f'{log_idx+1:02d}')
             grp['ee_nk'] = edited_edges
             grp['ee_nx'] = edited_edges_nx
             grp['bpp'] = bike_path_perc
@@ -141,8 +140,7 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
             log_idx += 1
 
     # Save data of this run to data array
-    loc_hf = '{0:}{1:}_data_mode_{2:d}{3:}.hdf5'\
-        .format(output_folder, save, rev, minmode)
+    loc_hf = f'{output_folder}{save}_data_mode_{rev:d}{minmode}.hdf5'
     hf = h5py.File(loc_hf, 'a')
     grp = hf.create_group('all')
     grp['ee_nk'] = edited_edges
@@ -184,8 +182,7 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     Path(log_folder).mkdir(parents=True, exist_ok=True)
 
-    loc_hf = output_folder+'{:}_data_mode_{:d}{:}.hdf5'.format(save,
-                                                               rev, minmode)
+    loc_hf = f'{output_folder}{save}_data_mode_{rev:d}{minmode}.hdf5'
     hf = h5py.File(loc_hf, 'w')
     hf.attrs['city'] = city
 
@@ -193,18 +190,16 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
     sd = time.localtime()
     starttime = time.time()
 
-    logpath = log_folder + '{:s}_{:d}{:}.txt'.format(save, rev, minmode)
+    logpath = f'{log_folder}{save}_{rev:d}{minmode}.txt'
     # Initial Log
-    log_to_file(logpath,
-                'Started optimising {} with minmode {} and reversed {}'
-                .format(city, minmode, rev),
+    log_to_file(logpath, f'Started optimising {city} with minmode {minmode} '
+                         f'and reversed {rev}',
                 start=sd, stamp=False, difference=False)
 
-    nxG = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
-                          node_type=int)
+    nxG = ox.load_graphml(filepath=f'{input_folder}{save}.graphml')
     nxG = nx.Graph(nxG.to_undirected())
-    print('Simulating "{}" with {} nodes and {} edges.'
-          .format(city, len(nxG.nodes), len(nxG.edges)))
+    print(f'Simulating "{city}" with {len(nxG.nodes)} nodes and '
+          f'{len(nxG.edges)} edges.')
     hf.attrs['nodes'] = len(nxG.nodes)
     hf.attrs['edges'] = len(nxG.edges)
 
@@ -217,14 +212,14 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
     hf.attrs['nbr of stations'] = len(stations)
     hf['stations'] = stations
 
-    print('Number of trips: {}'.format(sum(trip_nbrs_nx.values())))
+    print(f'Number of trips: {sum(trip_nbrs_nx.values())}')
     hf.attrs['total trips (incl round trips)'] = sum(trip_nbrs_nx.values())
 
     # Exclude round trips
     trip_nbrs_nx = {trip_id: nbr_of_trips for trip_id, nbr_of_trips
                     in trip_nbrs_nx.items() if not trip_id[0] == trip_id[1]}
-    print('Number of trips, round trips excluded: {}'.
-          format(sum(trip_nbrs_nx.values())))
+    print(f'Number of trips, round trips excluded: '
+          f'{sum(trip_nbrs_nx.values())}')
     hf.attrs['total trips'] = sum(trip_nbrs_nx.values())
 
 
@@ -295,7 +290,7 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
                    minmode=minmode, rev=rev)
 
     # Print computation time to console and write it to the log.
-    log_to_file(logpath, 'Finished optimising {0:s}'
-                .format(city), stamptime=time.localtime(), start=starttime,
+    log_to_file(logpath, f'Finished optimising {city}',
+                stamptime=time.localtime(), start=starttime,
                 end=time.time(), stamp=True, difference=True)
     return 0

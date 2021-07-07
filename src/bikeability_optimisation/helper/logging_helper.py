@@ -27,32 +27,30 @@ def log_to_file(file, txt, stamptime=time.localtime(), start=None,
     """
     if difference and not stamp:
         dur = _get_duration(start, end)
-        print('{0:} after {1:d}d{2:02d}h{3:02d}m{4:02d}s.'
-              .format(txt, dur[0], dur[1], dur[2], dur[3]))
+        print(f'{txt} after '
+              f'{dur[0]:d}d{dur[1]:02d}h{dur[2]:02d}m{dur[3]:02d}s.')
         with open(file, 'a+') as logfile:
-            logfile.write('{0:} after {1:d}d{2:02d}h{3:02d}m{4:02d}s.\n'
-                          .format(txt, dur[0], dur[1], dur[2], dur[3]))
+            logfile.write(f'{txt:} after '
+                          f'{dur[0]:d}d{dur[1]:02d}h'
+                          f'{dur[2]:02d}m{dur[3]:02d}s.\n')
     elif not difference and stamp:
-        print('{}: {}.'.format(time.strftime('%d %b %Y %H:%M:%S', stamptime),
-                               txt))
+        print(f'{time.strftime("%d %b %Y %H:%M:%S", stamptime)}: {txt}.')
         with open(file, 'a+') as logfile:
-            logfile.write('{}: {}.\n'.format(time.strftime('%d %b %Y %H:%M:%S',
-                                                           stamptime), txt))
+            logfile.write(f'{time.strftime("%d %b %Y %H:%M:%S", stamptime)}:'
+                          f' {txt}.\n')
     elif difference and stamp:
         dur = _get_duration(start, end)
-        print('{0:}: {1:} after {2:d}d{3:02d}h{4:02d}m{5:02d}s.'
-              .format(time.strftime('%d %b %Y %H:%M:%S', stamptime), txt,
-                      dur[0], dur[1], dur[2], dur[3]))
+        print(f'{time.strftime("%d %b %Y %H:%M:%S", stamptime)}: {txt:} after '
+              f'{dur[0]:d}d{dur[1]:02d}h{dur[2]:02d}m{dur[3]:02d}s.')
         with open(file, 'a+') as logfile:
-            logfile.write('{0:}: {1:} after {2:d}d{3:02d}h{4:02d}m{5:02d}s.\n'
-                          .format(time.strftime('%d %b %Y %H:%M:%S',
-                                                stamptime),
-                                  txt, dur[0], dur[1], dur[2], dur[3]))
+            logfile.write(f'{time.strftime("%d %b %Y %H:%M:%S", stamptime)}: '
+                          f'{txt:} after {dur[0]:d}d'
+                          f'{dur[1]:02d}h{dur[2]:02d}m{dur[3]:02d}s.\n')
     else:
-        print('{}: {}.'.format(time.strftime('%d %b %Y %H:%M:%S', start), txt))
+        print(f'{time.strftime("%d %b %Y %H:%M:%S", start)}: {txt}.')
         with open(file, 'a+') as logfile:
-            logfile.write('{}: {}.\n'.format(time.strftime('%d %b %Y %H:%M:%S',
-                                                           start), txt))
+            logfile.write(f'{time.strftime("%d %b %Y %H:%M:%S", start)}: '
+                          f'{txt}.\n')
 
 
 def _get_duration(st, et):

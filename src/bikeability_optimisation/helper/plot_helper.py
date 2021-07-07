@@ -272,11 +272,11 @@ def calc_scale(base_city, cities, saves, comp_folder, mode):
     ba = {}
 
     if isinstance(mode, tuple):
-        mode = '{:d}{}'.format(mode[0], mode[1])
+        mode = f'{mode[0]:d}{mode[1]}'
 
     for city in cities:
         save = saves[city]
-        data = h5py.File(comp_folder + 'comp_{}.hdf5'.format(save), 'r')
+        data = h5py.File(f'{comp_folder}comp_{save}.hdf5', 'r')
         blp[city] = data['algorithm'][mode]['bpp'][()]
         ba[city] = data['algorithm'][mode]['ba'][()]
 
@@ -397,11 +397,11 @@ def plot_barh(data, colors, save, figsize=None, plot_format='png',
             text_color = 'white' if (r * 0.299 + g * 0.587 + b * 0.114) < \
                                     0.25 \
                 else 'black'
-            ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center',
-                    va='center', color=text_color, fontsize=16)
+            ax.text(x, y, f'{values[idx]:3.2f}', ha='center', va='center',
+                    color=text_color, fontsize=16)
         else:
-            ax.text(2 * values[idx], y, '{:3.2f}'.format(values[idx]),
-                    ha='center', va='center', color='darkgrey', fontsize=16)
+            ax.text(2 * values[idx], y, f'{values[idx]:3.2f}', ha='center',
+                    va='center', color='darkgrey', fontsize=16)
 
     ax.set_yticks(y_pos)
     ax.set_yticklabels(keys)
@@ -410,7 +410,7 @@ def plot_barh(data, colors, save, figsize=None, plot_format='png',
     ax.set_xlabel(x_label)
     ax.set_title(title)
 
-    plt.savefig(save+'.{}'.format(plot_format), format=plot_format,
+    plt.savefig(f'{save}.{plot_format}', format=plot_format,
                 bbox_inches='tight')
 
 
@@ -421,7 +421,7 @@ def plot_barh_stacked(data, stacks, colors, save, figsize=None,
     :param data: Data to plot as dictionary.
     :type data: dict
     :param colors: Colors for the data
-    :type colors: dict
+    :type colors: list
     :param save: Save location without format
     :type save: str
     :param figsize: Size of figure (width, height)
@@ -461,13 +461,13 @@ def plot_barh_stacked(data, stacks, colors, save, figsize=None,
             else 'black'
         for y, (x, c) in enumerate(zip(xcenters, widths)):
             if c != 0.0:
-                ax.text(x, y, '{:3.2f}'.format(c), ha='center', va='center',
+                ax.text(x, y, f'{c:3.2f}', ha='center', va='center',
                         color=text_color)
     if legend:
         ax.legend(ncol=len(stacks), bbox_to_anchor=(0, 1), loc='lower left',
                   fontsize='small')
     ax.set_title(title)
-    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
+    plt.savefig(f'{save}.{plot_format}', format=plot_format,
                 bbox_inches='tight')
 
 
@@ -515,7 +515,7 @@ def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
         r, g, b, _ = color
         text_color = 'white' if (r * 0.299 + g * 0.587 + b * 0.114) < 0.25 \
             else 'black'
-        ax.text(x, y, '{:3.2f}'.format(values[idx]), ha='center', va='center',
+        ax.text(x, y, f'{values[idx]:3.2f}', ha='center', va='center',
                 color=text_color)
     if xticks:
         ax.set_xticks(x_pos)
@@ -531,7 +531,7 @@ def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
     ax.set_xlabel('', fontsize=24)
     ax.set_title(title)
 
-    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
+    plt.savefig(f'save.{plot_format}', format=plot_format,
                 bbox_inches='tight')
 
 
@@ -587,8 +587,8 @@ def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
                                                 r * 0.299 + g * 0.587 +
                                                 b * 0.114) < 0.25 \
                     else 'black'
-                ax.text(x, y, '{:3.2f}'.format(v), ha='center',
-                        va='center', color=text_color, fontsize=6)
+                ax.text(x, y, f'{v:3.2f}', ha='center', va='center',
+                        color=text_color, fontsize=6)
         bottom = [sum(x) for x in zip(bottom, values[idx])]
         # print(stacks[idx], values[idx])
 
@@ -600,7 +600,7 @@ def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
     ax.tick_params(axis='x', labelsize=7)
     ax.set_title(title, fontsize=12)
 
-    plt.savefig(save + '.{}'.format(plot_format), format=plot_format,
+    plt.savefig(f'{save}.{plot_format}', format=plot_format,
                 bbox_inches='tight')
 
 
@@ -663,7 +663,7 @@ def plot_histogram(data, save_path, bins=None, cumulative=False,
         ax.tick_params(axis='x', hich='both', bottom=False, top=False,
                        labelbottom=False)
 
-    fig.savefig('{}.{}'.format(save_path, plot_format), format=plot_format,
+    fig.savefig(f'{save_path}.{plot_format}', format=plot_format,
                 bbox_inches='tight')
 
 

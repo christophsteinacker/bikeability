@@ -93,9 +93,8 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
                                        consolidate=consolidate, tol=tol)
         else:
             print('Loading cached bbox map')
-            G_b = ox.load_graphml(filepath=cached_graph_folder +
-                                           '{}_bbox.graphml'
-                                  .format(cached_graph_name), node_type=int)
+            G_b = ox.load_graphml(filepath=f'{cached_graph_folder}'
+                                           f'{cached_graph_name}_bbox.graphml')
             if consolidate:
                 G_b = consolidate_nodes(G_b, tol=tol)
 
@@ -105,16 +104,16 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
 
         # Colour all used nodes
         print('Plotting used nodes on graph given by bbox.')
-        plot_used_nodes(save='{}_bbox'.format(save_name), G=G_b,
+        plot_used_nodes(save=f'{save_name}_bbox', G=G_b,
                         trip_nbrs=trips_b, stations=stations_b,
                         plot_folder=plot_folder,
                         figsize=(plot_bbox_size[0], plot_bbox_size[1]))
         fig, ax = ox.plot_graph(G_b, figsize=(20, 20), dpi=300, close=False,
                                 show=False)
-        fig.suptitle('Graph used for {}'.format(city_name.capitalize()),
-                     fontsize=30)
-        plt.savefig('{}/{}_bbox.png'.format(plot_folder, save_name),
-                    format='png')
+        fig.suptitle(f'Graph used for {city_name.capitalize()}', fontsize=30)
+        plt.savefig(f'{plot_folder}{save_name}_bbox.png', format='png')
+        ox.save_graphml(G_b, filepath=f'{output_folder}'
+                                      f'{save_name}_bbox.graphml')
         ox.save_graphml(G_b, filepath=output_folder + '{}_bbox.graphml'
                         .format(save_name))
         np.save('{}/{}_bbox_demand.npy'.format(output_folder, save_name),
@@ -128,9 +127,8 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
                                        tol=tol)
         else:
             print('Loading cached map of city')
-            G_c = ox.load_graphml(filepath=cached_graph_folder +
-                                           '{}_city.graphml'
-                                  .format(cached_graph_name), node_type=int)
+            G_c = ox.load_graphml(filepath=f'{cached_graph_folder}'
+                                           f'{cached_graph_name}_city.graphml')
             if consolidate:
                 G_c = consolidate_nodes(G_c, tol=tol)
 
@@ -140,16 +138,16 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
 
         # Colour all used nodes
         print('Plotting used nodes on complete city.')
-        plot_used_nodes(save='{}_city'.format(save_name), G=G_c,
+        plot_used_nodes(save=f'{save_name}_city', G=G_c,
                         trip_nbrs=trips_c, stations=stations_c,
                         plot_folder=plot_folder,
                         figsize=(plot_city_size[0], plot_city_size[1]))
         fig, ax = ox.plot_graph(G_c, figsize=(20, 20), dpi=300, close=False,
                                 show=False)
-        fig.suptitle('Graph used for {}'.format(city_name.capitalize()),
-                     fontsize=30)
-        plt.savefig('{}/{}_city.png'.format(plot_folder, save_name),
-                    format='png')
+        fig.suptitle(f'Graph used for {city_name.capitalize()}', fontsize=30)
+        plt.savefig(f'{plot_folder}{save_name}_city.png', format='png')
+        ox.save_graphml(G_c, filepath=f'{cached_graph_folder}'
+                                      f'{save_name}_city.graphml')
         ox.save_graphml(G_c, filepath=cached_graph_folder +
                                       '{}_city.graphml'.format(save_name))
         np.save('{}/{}_city_demand.npy'.format(output_folder, save_name),
@@ -165,8 +163,8 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
                                         consolidate=consolidate, tol=tol)
         else:
             print('Loading cached map.')
-            G = ox.load_graphml(filepath=cached_graph_folder + '{}.graphml'
-                                .format(cached_graph_name), node_type=int)
+            G = ox.load_graphml(filepath=f'{cached_graph_folder}'
+                                         f'{cached_graph_name}.graphml')
             if consolidate:
                 G = consolidate_nodes(G, tol=tol)
 
@@ -181,9 +179,9 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
                         figsize=(plot_size[0], plot_size[1]))
         fig, ax = ox.plot_graph(G, figsize=(20, 20), dpi=300, close=False,
                                 show=False)
-        fig.suptitle('Graph used for {}'.format(city_name.capitalize()),
-                     fontsize=30)
-        plt.savefig('{}/{}.png'.format(plot_folder, save_name), format='png')
+        fig.suptitle(f'Graph used for {city_name.capitalize()}', fontsize=30)
+        plt.savefig(f'{plot_folder}{save_name}.png', format='png')
+        ox.save_graphml(G, filepath=f'{output_folder}{save_name}.graphml')
         ox.save_graphml(G, filepath=output_folder+'{}.graphml'
                         .format(save_name))
         np.save('{}/{}_demand.npy'.format(output_folder, save_name), [trips])
@@ -238,7 +236,7 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
 
     hf_comp = h5py.File(output_folder+'{}_analysis.hdf5'.format(save), 'w')
 
-    trips = np.load(input_folder + '{}_demand.npy'.format(save),
+    G_city = ox.load_graphml(filepath=f'{input_folder}{save}.graphml')
                     allow_pickle=True)[0]
     G_city = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
                              node_type=int)
@@ -258,7 +256,7 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
         else:
             overlay_p = None
         plot_used_area(G_city, polygon, stations, folder=plot_folder,
-                       filename=save+'_used_area', plot_format=plot_format)
+                       filename=f'{save}_used_area', plot_format=plot_format)
     else:
         polygon = None
         if overlay and overlay_ploy is not None:
@@ -295,7 +293,7 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
         stations_new = sort_clustering(G)
         df2 = data_to_matrix(stations_new, trips)
         print('Plotting clustered OD Matrix.')
-        plot_od_matrix(city, df2, plot_folder, save=save+'_cluster',
+        plot_od_matrix(city, df2, plot_folder, save=f'{save}_cluster',
                        figsize=None, dpi=150, plot_format=plot_format)
 
         H = matrix_to_graph(df2, data=False)
@@ -304,19 +302,16 @@ def analyse_city(save, city, input_folder, output_folder, plot_folder,
         rename_columns = {'source': 'NODE_ID1', 'target': 'NODE_ID2',
                           'trips': 'WEIGHT'}
         df3.rename(columns=rename_columns, inplace=True)
-        path = output_folder + '{}_trips.csv'.format(save)
+        path = f'{output_folder}{save}_trips.csv'
         df3.to_csv(path, index=False)
 
     if communities:
-        oxG = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
-                              node_type=int)
+        oxG = ox.load_graphml(filepath=f'{input_folder}{save}.graphml')
         df_com_stat, df_stat_com = get_communities(comm_requests,
                                                    comm_requests_result,
                                                    stations, oxG)
-        df_com_stat.to_csv(output_folder + '{}_com_stat.csv'.format(save),
-                           index=True)
-        df_stat_com.to_csv(output_folder + '{}_stat_com.csv'.format(save),
-                           index=True)
+        df_com_stat.to_csv(f'{output_folder}{save}_com_stat.csv', index=True)
+        df_stat_com.to_csv(f'{output_folder}{save}_stat_com.csv', index=True)
 
     avg_trip_len = calc_average_trip_len(G_city, trips, penalties=True)
 
