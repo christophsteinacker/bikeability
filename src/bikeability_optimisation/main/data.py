@@ -2,13 +2,10 @@
 This module includes all necessary functions for the data preparation and
 handling.
 """
-import h5py
 import matplotlib.pyplot as plt
 from pathlib import Path
-from pyproj import Proj, transform
 from ..helper.data_helper import *
-from .plot import plot_station_degree, plot_used_area, plot_used_nodes, \
-    plot_od_matrix
+from .plot import plot_used_nodes
 
 
 def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
@@ -16,7 +13,7 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
               trunk=False, consolidate=False, tol=35, by_bbox=True,
               plot_bbox_size=None, by_city=True, plot_city_size=None,
               by_polygon=True, plot_size=None, cached_graph=False,
-              cached_graph_folder=None, cached_graph_name=None):
+              cached_graph_folder=None, cached_graph_name=None, params=None):
     """
     Prepares the data of a city for the algorithm and saves it to the
     desired location.
@@ -62,6 +59,8 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
     :type cached_graph_folder: str
     :param cached_graph_name: Name of the downloaded graph.
     :type cached_graph_name: str
+    :param params: Dictionary with parameters for plotting etc
+    :type params: dict or None
     :return: None
     """
     if nominatim_name is None:
@@ -104,20 +103,24 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
 
         # Colour all used nodes
         print('Plotting used nodes on graph given by bbox.')
-        plot_used_nodes(save=f'{save_name}_bbox', G=G_b,
+        plot_used_nodes(city=city_name, save=f'{save_name}_bbox', G=G_b,
                         trip_nbrs=trips_b, stations=stations_b,
-                        plot_folder=plot_folder,
-                        figsize=(plot_bbox_size[0], plot_bbox_size[1]))
+                        plot_folder=plot_folder, params=params)
         fig, ax = ox.plot_graph(G_b, figsize=(20, 20), dpi=300, close=False,
                                 show=False)
         fig.suptitle(f'Graph used for {city_name.capitalize()}', fontsize=30)
         plt.savefig(f'{plot_folder}{save_name}_bbox.png', format='png')
         ox.save_graphml(G_b, filepath=f'{output_folder}'
                                       f'{save_name}_bbox.graphml')
-        ox.save_graphml(G_b, filepath=output_folder + '{}_bbox.graphml'
-                        .format(save_name))
-        np.save('{}/{}_bbox_demand.npy'.format(output_folder, save_name),
-                [trips_b])
+        demand_b = h5py.File(f'{output_folder}{save_name}_bbox_demand.hdf5',
+                             'w')
+        demand_b.attrs['city'] = city_name
+        for k, v in trips_b.items():
+            grp = demand_b.require_group(f'{k[0]}')
+            grp[f'{k[1]}'] = v
+        demand_b.close()
+
+
     if by_city:
         if not cached_graph:
             # Download whole map of the city
@@ -138,20 +141,22 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
 
         # Colour all used nodes
         print('Plotting used nodes on complete city.')
-        plot_used_nodes(save=f'{save_name}_city', G=G_c,
+        plot_used_nodes(city=city_name, save=f'{save_name}_city', G=G_c,
                         trip_nbrs=trips_c, stations=stations_c,
-                        plot_folder=plot_folder,
-                        figsize=(plot_city_size[0], plot_city_size[1]))
+                        plot_folder=plot_folder, params=params)
         fig, ax = ox.plot_graph(G_c, figsize=(20, 20), dpi=300, close=False,
                                 show=False)
         fig.suptitle(f'Graph used for {city_name.capitalize()}', fontsize=30)
         plt.savefig(f'{plot_folder}{save_name}_city.png', format='png')
         ox.save_graphml(G_c, filepath=f'{cached_graph_folder}'
                                       f'{save_name}_city.graphml')
-        ox.save_graphml(G_c, filepath=cached_graph_folder +
-                                      '{}_city.graphml'.format(save_name))
-        np.save('{}/{}_city_demand.npy'.format(output_folder, save_name),
-                [trips_c])
+        demand_c = h5py.File(f'{output_folder}{save_name}_city_demand.hdf5',
+                             'w')
+        demand_c.attrs['city'] = city_name
+        for k, v in trips_c.items():
+            grp = demand_c.require_group(f'{k[0]}')
+            grp[f'{k[1]}'] = v
+        demand_c.close()
 
     if by_polygon:
         # Download cropped map (polygon)

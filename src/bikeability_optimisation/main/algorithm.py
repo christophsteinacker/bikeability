@@ -203,8 +203,10 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
     hf.attrs['nodes'] = len(nxG.nodes)
     hf.attrs['edges'] = len(nxG.edges)
 
-    trip_nbrs_nx = np.load(input_folder+'{}_demand.npy'.format(save),
-                           allow_pickle=True)[0]
+    demand = h5py.File(f'{input_folder}{save}_demand.hdf5', 'r')
+    trip_nbrs_nx = {(int(k1), int(k2)): int(v[()]) for k1
+                    in list(demand.keys()) for k2, v in demand[k1].items()}
+    demand.close()
 
     stations = [station for trip_id, nbr_of_trips in trip_nbrs_nx.items() for
                 station in trip_id]

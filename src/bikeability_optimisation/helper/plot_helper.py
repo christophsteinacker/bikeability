@@ -410,8 +410,7 @@ def plot_barh(data, colors, save, figsize=None, plot_format='png',
     ax.set_xlabel(x_label)
     ax.set_title(title)
 
-    plt.savefig(f'{save}.{plot_format}', format=plot_format,
-                bbox_inches='tight')
+    plt.savefig(f'{save}.{plot_format}', bbox_inches='tight')
 
 
 def plot_barh_stacked(data, stacks, colors, save, figsize=None,
@@ -467,8 +466,7 @@ def plot_barh_stacked(data, stacks, colors, save, figsize=None,
         ax.legend(ncol=len(stacks), bbox_to_anchor=(0, 1), loc='lower left',
                   fontsize='small')
     ax.set_title(title)
-    plt.savefig(f'{save}.{plot_format}', format=plot_format,
-                bbox_inches='tight')
+    plt.savefig(f'{save}.{plot_format}', bbox_inches='tight')
 
 
 def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
@@ -531,8 +529,7 @@ def plot_barv(data, colors, save, figsize=None, plot_format='png', y_label='',
     ax.set_xlabel('', fontsize=24)
     ax.set_title(title)
 
-    plt.savefig(f'save.{plot_format}', format=plot_format,
-                bbox_inches='tight')
+    plt.savefig(f'{save}.{plot_format}', bbox_inches='tight')
 
 
 def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
@@ -600,8 +597,7 @@ def plot_barv_stacked(labels, data, colors, title='', ylabel='', save='',
     ax.tick_params(axis='x', labelsize=7)
     ax.set_title(title, fontsize=12)
 
-    plt.savefig(f'{save}.{plot_format}', format=plot_format,
-                bbox_inches='tight')
+    plt.savefig(f'{save}.{plot_format}', bbox_inches='tight')
 
 
 def plot_histogram(data, save_path, bins=None, cumulative=False,
