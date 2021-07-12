@@ -708,7 +708,7 @@ def calc_current_state(nxG, trip_nbrs, bike_paths=None):
     bike path.
     :param nxG: Street graph to calculate in.
     :param trip_nbrs: Number of trips as used for the main algorithm.
-    :param bike_paths: List of edges which hav a bike path.
+    :param bike_paths: List of edges which have a bike path.
     :return: Data structured as from the main algorithm.
     :rtype: np.array
     """
