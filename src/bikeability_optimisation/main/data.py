@@ -174,151 +174,17 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
 
         # Colour all used nodes
         print('Plotting used nodes in polygon.')
-        plot_used_nodes(save=save_name, G=G, trip_nbrs=trips,
-                        stations=stations, plot_folder=plot_folder,
-                        figsize=(plot_size[0], plot_size[1]))
+        plot_used_nodes(city=city_name, save=save_name, G=G, trip_nbrs=trips,
+                        stations=stations, plot_folder=plot_folder)
         fig, ax = ox.plot_graph(G, figsize=(20, 20), dpi=300, close=False,
                                 show=False)
         fig.suptitle(f'Graph used for {city_name.capitalize()}', fontsize=30)
         plt.savefig(f'{plot_folder}{save_name}.png', format='png')
         ox.save_graphml(G, filepath=f'{output_folder}{save_name}.graphml')
-        ox.save_graphml(G, filepath=output_folder+'{}.graphml'
-                        .format(save_name))
-        np.save('{}/{}_demand.npy'.format(output_folder, save_name), [trips])
-
-
-def analyse_city(save, city, input_folder, output_folder, plot_folder,
-                 cluster=False, bg_map=False, bg_polygon=None,
-                 overlay=False, overlay_ploy=None, communities=False,
-                 comm_requests=None, comm_requests_result=None,
-                 plot_format='png', dpi=150):
-    """
-    Analyses the demand data of the city and saves the results as hdf5. If you
-    are interested in the communities inside the demand data, provide the
-    smallest possible administrative level for the city (e.g. districts or
-    boroughs).
-    :param save: Savename of the city.
-    :type save: str
-    :param city: Name of the city
-    :type city: str
-    :param input_folder: Folder of the input data for the algorithm
-    :type input_folder: str
-    :param output_folder: Folder for the output of the analysed data
-    :type output_folder: str
-    :param plot_folder: Folder for the plots.
-    :type plot_folder: str
-    :param cluster: If clustering coefficient of the stations should be
-    calculated and used as sorting.
-    :type cluster: bool
-    :param bg_map: Background map for graph plots.
-    :type bg_map: bool
-    :param bg_polygon: Path to polygon json of the background
-    :type bg_polygon: str
-    :param overlay: Overlay
-    :type overlay: bool
-    :param overlay_ploy: Path to polygon json of the overlay
-    :type overlay_ploy: str
-    :param communities: Calculate communities
-    :type communities: bool
-    :param comm_requests: Nominatim requests for the areas of the city
-    :type comm_requests: list
-    :param comm_requests_result: Nominatim which_results
-    :type comm_requests_result: list
-    :param plot_format: File format for the plots
-    :type plot_format: str
-    :param dpi: DPI of the plots
-    :type dpi: int
-    :return: None
-    """
-    plt.rcdefaults()
-    Path(output_folder).mkdir(parents=True, exist_ok=True)
-    Path(plot_folder).mkdir(parents=True, exist_ok=True)
-
-    hf_comp = h5py.File(output_folder+'{}_analysis.hdf5'.format(save), 'w')
-
-    G_city = ox.load_graphml(filepath=f'{input_folder}{save}.graphml')
-                    allow_pickle=True)[0]
-    G_city = ox.load_graphml(filepath=input_folder+'{}.graphml'.format(save),
-                             node_type=int)
-
-    stations = []
-    for k in trips.keys():
-        stations.append(k[0])
-        stations.append(k[1])
-    stations = list(set(stations))
-
-    if bg_map:
-        polygon = get_polygon_from_json(bg_polygon)
-        if overlay and overlay_ploy is not None:
-            overlay_p = get_polygon_from_json(overlay_ploy)
-        elif overlay and overlay_ploy is None:
-            overlay_p = get_polygon_from_json(bg_polygon)
-        else:
-            overlay_p = None
-        plot_used_area(G_city, polygon, stations, folder=plot_folder,
-                       filename=f'{save}_used_area', plot_format=plot_format)
-    else:
-        polygon = None
-        if overlay and overlay_ploy is not None:
-            overlay_p = get_polygon_from_json(overlay_ploy)
-        else:
-            overlay_p = None
-
-
-    stations_pos = {}
-    for s in stations:
-        lon = G_city.nodes[s]['x']
-        lat = G_city.nodes[s]['y']
-        inProj = Proj('epsg:4326')
-        outProj = Proj('epsg:3857')
-        stations_pos[s] = transform(inProj, outProj, lat, lon)
-
-    df1 = data_to_matrix(stations, trips)
-    print('Plotting OD Matrix.')
-    plot_od_matrix(city, df1, plot_folder, save, cmap=None, figsize=None,
-                   dpi=dpi, plot_format=plot_format)
-
-    print('Plotting data.')
-    G, degree, indegree, outdegree, imbalance = matrix_to_graph(df1)
-
-    plot_station_degree(G, degree=degree, indegree=indegree,
-                        outdegree=outdegree,  node_cmap=None,
-                        node_pos=stations_pos, bg_area=polygon,
-                        overlay_poly=overlay_p, save=save,
-                        plot_folder=plot_folder, plot_format=plot_format,
-                        dpi=dpi, figsize=None)
-
-    if cluster:
-        print('Calculating clustering.')
-        stations_new = sort_clustering(G)
-        df2 = data_to_matrix(stations_new, trips)
-        print('Plotting clustered OD Matrix.')
-        plot_od_matrix(city, df2, plot_folder, save=f'{save}_cluster',
-                       figsize=None, dpi=150, plot_format=plot_format)
-
-        H = matrix_to_graph(df2, data=False)
-
-        df3 = nx.to_pandas_edgelist(H)
-        rename_columns = {'source': 'NODE_ID1', 'target': 'NODE_ID2',
-                          'trips': 'WEIGHT'}
-        df3.rename(columns=rename_columns, inplace=True)
-        path = f'{output_folder}{save}_trips.csv'
-        df3.to_csv(path, index=False)
-
-    if communities:
-        oxG = ox.load_graphml(filepath=f'{input_folder}{save}.graphml')
-        df_com_stat, df_stat_com = get_communities(comm_requests,
-                                                   comm_requests_result,
-                                                   stations, oxG)
-        df_com_stat.to_csv(f'{output_folder}{save}_com_stat.csv', index=True)
-        df_stat_com.to_csv(f'{output_folder}{save}_stat_com.csv', index=True)
-
-    avg_trip_len = calc_average_trip_len(G_city, trips, penalties=True)
-
-    hf_comp['station degree'] = degree
-    hf_comp['station indegree'] = indegree
-    hf_comp['station outdegree'] = outdegree
-    hf_comp['trips'] = [v for k, v in trips.items()]
-    hf_comp['imbalance'] = imbalance
-    hf_comp['avg trip length'] = avg_trip_len
-    hf_comp.close()
+        demand = h5py.File(f'{output_folder}{save_name}_demand.hdf5',
+                           'w')
+        demand.attrs['city'] = city_name
+        for k, v in trips.items():
+            grp = demand.require_group(f'{k[0]}')
+            grp[f'{k[1]}'] = v
+        demand.close()
