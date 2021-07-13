@@ -131,3 +131,9 @@ dmypy.json
 
 
 .idea/
+
+cache/
+
+examples/data/input_data/hh/.directory
+
+*.hdf5
