@@ -5,15 +5,15 @@ handling.
 import matplotlib.pyplot as plt
 from pathlib import Path
 from ..helper.data_helper import *
-from .plot import plot_used_nodes
+from .plot import plot_used_nodes, plot_street_network
 
 
-def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
-              plot_folder, nominatim_name=None, nominatim_result=1,
+def prep_city(city_name, save_name,  input_csv,
+              nominatim_name=None, nominatim_result=1,
               trunk=False, consolidate=False, tol=35, by_bbox=True,
-              plot_bbox_size=None, by_city=True, plot_city_size=None,
-              by_polygon=True, plot_size=None, cached_graph=False,
-              cached_graph_folder=None, cached_graph_name=None, params=None):
+              by_city=True, by_polygon=True, cached_graph=False,
+              cached_graph_folder=None, cached_graph_name=None,
+              paths=None, params=None):
     """
     Prepares the data of a city for the algorithm and saves it to the
     desired location.
@@ -23,12 +23,6 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
     :type save_name: str
     :param input_csv: Path to the trip csv
     :type input_csv: str
-    :param output_folder: Folder for the data output
-    :type output_folder: str
-    :param polygon_json: Path to the json of the polygon
-    :type polygon_json: str
-    :param plot_folder: Folder for the plots
-    :type plot_folder: str
     :param nominatim_name: Nominatim name of the city
     :type nominatim_name: str
     :param nominatim_result: results position of the city for the given name
@@ -42,43 +36,41 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
     :param by_bbox: If graph should be downloaded by the bbox surrounding the
     trips
     :type by_bbox: bool
-    :param plot_bbox_size: plot size of the bbox plots [width, height]
-    :type plot_bbox_size: list
     :param by_city: If graph should be downloaded by the nominatim name
     :type by_city: bool
-    :param plot_city_size: plot size of the nominatim name plots [width,
-    height]
-    :type plot_city_size: list
     :param by_polygon: If graph should be downloaded by the given polygon
     :type  by_polygon: bool
-    :param plot_size: plot size of the polygon plots [width, height]
-    :type plot_size: list
     :param cached_graph: If a previously downloaded graph should be used.
     :type cached_graph: bool
     :param cached_graph_folder: Folder of the downloaded graph.
     :type cached_graph_folder: str
     :param cached_graph_name: Name of the downloaded graph.
     :type cached_graph_name: str
+    :param paths:
+    :type paths:
     :param params: Dictionary with parameters for plotting etc
     :type params: dict or None
     :return: None
     """
-    if nominatim_name is None:
-        nominatim_name = city_name
-    if plot_size is None:
-        plot_size = [20, 20]
-    if plot_city_size is None:
-        plot_city_size = [20, 20]
-    if plot_bbox_size is None:
-        plot_bbox_size = [20, 20]
-    if cached_graph_folder is None:
-        cached_graph_folder = output_folder
-    if cached_graph is None:
-        cached_graph_name = save_name
+    if paths is None:
+        paths = create_default_paths()
+    if params is None:
+        params = create_default_params()
+
+    output_folder = f'{paths["input_folder"]}{save_name}/'
+    plot_folder = f'{paths["plot_folder"]}preparation/'
+    polygon_json = f'{paths["polygon_folder"]}{save_name}.json'
 
     # Check if necessary folders exists, otherwise create.
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     Path(plot_folder).mkdir(parents=True, exist_ok=True)
+
+    if nominatim_name is None:
+        nominatim_name = city_name
+    if cached_graph_folder is None:
+        cached_graph_folder = output_folder
+    if cached_graph is None:
+        cached_graph_name = save_name
 
     if by_bbox:
         # Get bounding box of trips
@@ -101,15 +93,15 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
         print('Mapping stations and calculation trips on map given by bbox')
         trips_b, stations_b = load_trips(G_b, input_csv)
 
-        # Colour all used nodes
+        # Colour all nodes used as origin or destination
         print('Plotting used nodes on graph given by bbox.')
         plot_used_nodes(city=city_name, save=f'{save_name}_bbox', G=G_b,
                         trip_nbrs=trips_b, stations=stations_b,
                         plot_folder=plot_folder, params=params)
-        fig, ax = ox.plot_graph(G_b, figsize=(20, 20), dpi=300, close=False,
-                                show=False)
-        fig.suptitle(f'Graph used for {city_name.capitalize()}', fontsize=30)
-        plt.savefig(f'{plot_folder}{save_name}_bbox.png', format='png')
+        # Plot used street network with all nodes
+        plot_street_network(city=city_name, save=f'{save_name}_bbox', G=G_b,
+                            plot_folder=plot_folder, params=params)
+
         ox.save_graphml(G_b, filepath=f'{output_folder}'
                                       f'{save_name}_bbox.graphml')
         demand_b = h5py.File(f'{output_folder}{save_name}_bbox_demand.hdf5',
@@ -119,7 +111,6 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
             grp = demand_b.require_group(f'{k[0]}')
             grp[f'{k[1]}'] = v
         demand_b.close()
-
 
     if by_city:
         if not cached_graph:
@@ -139,15 +130,15 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
         print('Mapping stations and calculation trips on complete map.')
         trips_c, stations_c = load_trips(G_c, input_csv)
 
-        # Colour all used nodes
+        # Colour all nodes used as origin or destination
         print('Plotting used nodes on complete city.')
         plot_used_nodes(city=city_name, save=f'{save_name}_city', G=G_c,
                         trip_nbrs=trips_c, stations=stations_c,
                         plot_folder=plot_folder, params=params)
-        fig, ax = ox.plot_graph(G_c, figsize=(20, 20), dpi=300, close=False,
-                                show=False)
-        fig.suptitle(f'Graph used for {city_name.capitalize()}', fontsize=30)
-        plt.savefig(f'{plot_folder}{save_name}_city.png', format='png')
+        # Plot used street network with all nodes
+        plot_street_network(city=city_name, save=f'{save_name}_city', G=G_c,
+                            plot_folder=plot_folder, params=params)
+
         ox.save_graphml(G_c, filepath=f'{cached_graph_folder}'
                                       f'{save_name}_city.graphml')
         demand_c = h5py.File(f'{output_folder}{save_name}_city_demand.hdf5',
@@ -177,14 +168,13 @@ def prep_city(city_name, save_name,  input_csv, output_folder, polygon_json,
         print('Mapping stations and calculation trips in polygon.')
         trips, stations = load_trips(G, input_csv, polygon=polygon)
 
-        # Colour all used nodes
+        # Colour all nodes used as origin or destination
         print('Plotting used nodes in polygon.')
         plot_used_nodes(city=city_name, save=save_name, G=G, trip_nbrs=trips,
                         stations=stations, plot_folder=plot_folder)
-        fig, ax = ox.plot_graph(G, figsize=(20, 20), dpi=300, close=False,
-                                show=False)
-        fig.suptitle(f'Graph used for {city_name.capitalize()}', fontsize=30)
-        plt.savefig(f'{plot_folder}{save_name}.png', format='png')
+        # Plot used street network with all nodes
+        plot_street_network(city=city_name, save=f'{save_name}', G=G,
+                            plot_folder=plot_folder, params=params)
         ox.save_graphml(G, filepath=f'{output_folder}{save_name}.graphml')
         demand = h5py.File(f'{output_folder}{save_name}_demand.hdf5',
                            'w')

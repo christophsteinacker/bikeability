@@ -15,6 +15,25 @@ from .algorithm import calc_current_state
 from ..helper.plot_helper import *
 
 
+def plot_street_network(city, save, G, plot_folder, params=None):
+    """
+    Plots the street network of graph G.
+
+    """
+    fig, ax = plt.subplots(figsize=params["figs_snetwork"],
+                           dpi=params["dpi"])
+    ox.plot_graph(G, ax=ax, bgcolor='#ffffff', show=False, close=False,
+                  node_color=params["nc_snetwork"],
+                  node_size=params["ns_snetwork"], node_zorder=3,
+                  edge_color=params["ec_snetwork"],
+                  edge_linewidth=params["ew_snetwork"])
+    if params["titles"]:
+        fig.suptitle(f'Graph used for {city.capitalize()}',
+                     fontsize=params["fs_title"])
+
+    plt.savefig(f'{plot_folder}{save}_street_network.{params["plot_format"]}')
+
+
 def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
                     params=None):
     """
@@ -66,16 +85,16 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
                    xlabel='total number of trips per year',
                    ylabel='number of stations', xlim=hist_xlim, bins=25,
                    cm=cmap, plot_format=params["plot_format"],
-                   dpi=params["dpi"], figsize=params["figs_station_usage"])
+                   dpi=params["dpi"],
+                   figsize=params["figs_station_usage_hist"])
 
-    cmap = ['#808080'] + \
-           [rgb2hex(cmap(n)) for n in reversed(np.linspace(1, 0, max_n,
-                                                           endpoint=True))] \
+    cmap = ['#808080'] + [rgb2hex(cmap(n)) for n in
+                          reversed(np.linspace(1, 0, max_n, endpoint=True))] \
            + ['#ffffff']
     color_n = [cmap[v] for k, v in n_rel.items()]
 
     fig2, ax2 = plt.subplots(dpi=params["dpi"],
-                             figsize=params["figs_station_usage_hist"])
+                             figsize=params["figs_station_usage"])
     ox.plot_graph(G, ax=ax2, bgcolor='#ffffff', edge_linewidth=0.3,
                   node_color=color_n, node_size=ns, node_zorder=3,
                   show=False, close=False,
@@ -103,8 +122,9 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
                                  round(max_n, -(max_r - 2))])
 
     cbar.outline.set_linewidth(0.5)
-    cbar.ax.tick_params(axis='x', labelsize=8, width=0.5)
-    cbar.ax.set_xlabel('total number of trips per year', fontsize=8)
+    cbar.ax.tick_params(axis='x', labelsize=params["fs_ticks"], width=0.5)
+    cbar.ax.set_xlabel('total number of trips per year',
+                       fontsize=params["fs_axl"])
 
     if params["titles"]:
         fig2.suptitle(f'{city.capitalize()}, Stations: {station_count}, '
@@ -117,10 +137,12 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
 
 
 def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
-                       trip_nbrs, rev, minmode, plot_folder,
+                       stations, rev, minmode, plot_folder,
                        mode='diff', params=None):
     nx.set_edge_attributes(G, False, 'algo')
     nx.set_edge_attributes(G, False, 'cs')
+
+    ns = [params["nodesize"] if n in stations else 0 for n in G.nodes()]
 
     if rev:
         ee_algo = ee_algo
@@ -190,40 +212,42 @@ def plot_bp_comparison(city, save, G, ee_algo, ee_cs, bpp_algo, bpp_cs,
 
     fig, ax = plt.subplots(dpi=params["dpi"], figsize=params["figs_bp_comp"])
     ox.plot_graph(G, bgcolor='#ffffff', ax=ax,
-                  node_size=params["nodesize"], node_color=params["nc_pb_evo"],
+                  node_size=ns, node_color=params["nc_pb_evo"],
                   node_zorder=3, edge_linewidth=0.6, edge_color=ec,
                   show=False, close=False)
     if params["legends"]:
+        lw_leg = params["lw_legend_bp_evo"]
         if mode == 'algo':
-            leg = [Line2D([0], [0], color=params["color_algo"], lw=4),
-                   Line2D([0], [0], color=params["color_unused"], lw=4)]
+            leg = [Line2D([0], [0], color=params["color_algo"], lw=lw_leg),
+                   Line2D([0], [0], color=params["color_unused"], lw=lw_leg)]
             ax.legend(leg, ['Algorithm', 'None'],
                       bbox_to_anchor=(0, -0.05, 1, 1), loc=3, ncol=2,
                       mode="expand", borderaxespad=0.,
                       fontsize=params["fs_legend"])
         elif mode == 'p+s':
-            leg = [Line2D([0], [0], color=params["color_cs"], lw=4),
-                   Line2D([0], [0], color=params["color_unused"], lw=4)]
+            leg = [Line2D([0], [0], color=params["color_cs"], lw=lw_leg),
+                   Line2D([0], [0], color=params["color_unused"], lw=lw_leg)]
             ax.legend(leg, ['Primary + Secondary', 'None'],
                       bbox_to_anchor=(0, -0.05, 1, 1), loc=3, ncol=2,
                       mode="expand", borderaxespad=0.,
                       fontsize=params["fs_legend"])
         elif mode == 'diff':
-            leg = [Line2D([0], [0], color=params["color_both"], lw=4),
-                   Line2D([0], [0], color=params["color_algo"], lw=4),
-                   Line2D([0], [0], color=params["color_cs"], lw=4),
-                   Line2D([0], [0], color=params["color_unused"], lw=4)]
+            leg = [Line2D([0], [0], color=params["color_both"], lw=lw_leg),
+                   Line2D([0], [0], color=params["color_algo"], lw=lw_leg),
+                   Line2D([0], [0], color=params["color_cs"], lw=lw_leg),
+                   Line2D([0], [0], color=params["color_unused"], lw=lw_leg)]
             ax.legend(leg, ['Both', 'Algorithm', 'Primary+Secondary', 'None'],
                       bbox_to_anchor=(0, -0.05, 1, 1), loc=3, ncol=4,
                       mode="expand", borderaxespad=0.,
                       fontsize=params["fs_legend"])
     if params["titles"]:
         if mode == 'algo':
-            ax.set_title('Algorithm', fontsize=params["fs_title"])
+            ax.set_title(f'{city}: Algorithm', fontsize=params["fs_title"])
         elif mode == 'p+s':
-            ax.set_title('Primary/Secondary', fontsize=params["fs_title"])
+            ax.set_title(f'{city}: Primary/Secondary',
+                         fontsize=params["fs_title"])
         elif mode == 'diff':
-            ax.set_title('Comparison', fontsize=params["fs_title"])
+            ax.set_title(f'{city}: Comparison', fontsize=params["fs_title"])
 
     plt.savefig(f'{plot_folder}{save}-bp-build-{rev:d}{minmode}_{mode}'
                 f'.{params["plot_format"]}', bbox_inches='tight')
@@ -370,9 +394,6 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     cost_now = cost_now / total_cost[end]
 
     ns = [params["nodesize"] if n in stations else 0 for n in nxG_plot.nodes()]
-    cmap_name = params["cmap_nodes"]        # 'viridis'
-    cmap = plt.cm.get_cmap(cmap_name)
-    c = [cmap(n) for n in np.linspace(1, 0, 9, endpoint=True)]
 
     max_bpp = max(bpp[end], bpp[cut])
 
@@ -397,8 +418,10 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax1.set_ylim(0.0, 1.0)
     ax12.set_ylim(0.0, 1.0)
 
-    ax1.plot(bpp_cut, ba[:end], c=params["c_ba"], label='bikeability', lw=2.5)
-    ax1.plot(bpp_now, ba_now, c=params["c_ba"], ms=params["ms_ba"], marker='D')
+    ax1.plot(bpp_cut, ba[:end], c=params["c_ba"], label='bikeability',
+             lw=params["lw_ba"])
+    ax1.plot(bpp_now, ba_now, c=params["c_ba"], ms=params["ms_ba"],
+             marker=params["m_ba"])
     xmax, ymax = coord_transf(bpp_now, max([ba_y, ba_now]),
                               xmax=1, xmin=0, ymax=1, ymin=0)
     ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c=params["c_ba"], ls='--',
@@ -419,9 +442,9 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax1.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
 
     ax12.plot(bpp_cut, [x / total_cost[end] for x in total_cost[:end]],
-              c=params["c_cost"], label='total cost', lw=2.5)
+              c=params["c_cost"], label='total cost', lw=params["lw_cost"])
     ax12.plot(bpp_now, cost_now, c=params["c_cost"], ms=params["ms_cost"],
-              marker='s')
+              marker=params["m_cost"])
     xmin, ymax = coord_transf(bpp_now, cost_now,
                               xmax=1, xmin=0, ymax=1, ymin=0)
     ax1.axvline(x=bpp_now, ymax=ymax, ymin=0, c=params["c_cost"], ls='--',
@@ -458,9 +481,9 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax1ins = zoomed_inset_axes(ax1, 3.5, loc=1)
     x1, x2, y1, y2 = round(bpp_now - 0.05, 2), round(bpp_now + 0.05, 2), \
                      round(ba_now - 0.03, 2), min(round(ba_y + 0.03, 2), 1)
-    ax1ins.plot(bpp_cut, ba[:end], lw=2.5)
+    ax1ins.plot(bpp_cut, ba[:end], lw=params["lw_ba"])
     ax1ins.plot(bpp_now, ba_now, c=params["c_ba"], ms=params["ms_ba"],
-                marker='D')
+                marker=params["m_ba"])
     xmax, ymax = coord_transf(bpp_now, max([ba_y, ba_now]),
                               xmin=x1, xmax=x2, ymin=y1, ymax=y2)
     ax1ins.axvline(x=bpp_now, ymax=ymax, ymin=0, c=params["c_ba"], ls='--',
@@ -490,9 +513,9 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax22.set_ylim(0.0, 1.0)
 
     p1, = ax2.plot(bpp_cut, los[:end], label='length', c=params["c_los"],
-                   lw=2.5, zorder=1)
+                   lw=params["lw_los"], zorder=1)
     ax2.plot(bpp_now, los_now, c=params["c_los"], ms=params["ms_los"],
-             marker='8', zorder=3)
+             marker=params["m_los"], zorder=3)
     xmax, ymax = coord_transf(max(bpp_now, los_x), los_now,
                               xmax=1, xmin=0, ymax=1, ymin=0)
     ax2.axvline(x=bpp_now, ymax=ymax, ymin=0, c=params["c_los"], ls='--',
@@ -511,9 +534,9 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     ax2.yaxis.set_minor_locator(AutoMinorLocator())
 
     p2, = ax22.plot(bpp_cut, nos[:end], label='cyclists', c=params["c_nos"],
-                    lw=2.5, zorder=1)
+                    lw=params["lw_nos"], zorder=1)
     ax22.plot(bpp_now, nos_now, c=params["c_nos"], ms=params["ms_nos"],
-              marker='v', zorder=3)
+              marker=params["m_nos"], zorder=3)
     xmin, ymax = coord_transf(max(bpp_now, nos_x), nos_now,
                               xmax=1, xmin=0, ymax=1, ymin=0)
     ax22.axvline(x=bpp_now, ymax=ymax, ymin=0, c=params["c_nos"], ls='--',
@@ -557,7 +580,7 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
         plot_bp_comparison(city=city, save=save, G=nxG_plot,
                            ee_algo=edited_edges_nx, ee_cs=bike_paths_now,
                            bpp_algo=bike_path_perc, bpp_cs=bike_path_perc_now,
-                           trip_nbrs=trip_nbrs, rev=rev, minmode=minmode,
+                           stations=stations, rev=rev, minmode=minmode,
                            plot_folder=plot_folder, mode=bp_mode,
                            params=params)
 
@@ -600,25 +623,22 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
 
 def plot_comp_rand_demand(city, save, bpp_ed, bpp_rd, ba_ed, ba_rd, end,
                           params, paths):
-    fig, ax = plt.subplots(dpi=150, figsize=(2.7, 2.6))
+    fig, ax = plt.subplots(dpi=params["dpi"], figsize=(2.7, 2.6))
     for axis in ['top', 'bottom', 'left', 'right']:
         ax.spines[axis].set_linewidth(0.5)
     ax.set_xlim(0.0, 1.0)
     ax.set_ylim(0.0, 1.0)
-
-    c_ed = params["c_ed"]       # '#0080c0'
-    c_rd = params["c_rd"]       # '#f58231'
 
     bpp_ed_cut = [x / bpp_ed[end] for x in bpp_ed[:end]]
     ba_ed_cut = ba_ed[:end]
     bpp_rd_cut = [x / bpp_rd[end] for x in bpp_rd[:end]]
     ba_rd_cut = ba_rd[:end]
 
-    ax.plot(bpp_ed_cut, ba_ed_cut, c=c_ed, lw=0.9)
-    ax.plot(bpp_rd_cut, ba_rd_cut, c=c_rd, lw=0.9)
+    ax.plot(bpp_ed_cut, ba_ed_cut, c=params["c_ed"], lw=params["lw_ed"])
+    ax.plot(bpp_rd_cut, ba_rd_cut, c=params["c_rd"], lw=params["lw_rd"])
     poly = ax.fill(np.append(bpp_ed_cut, bpp_rd_cut[::-1]),
                    np.append(ba_ed_cut, ba_rd_cut[::-1]),
-                   color='#999999', alpha=0.75)
+                   color=params["c_rd_ed_area"], alpha=params["a_rd_ed_area"])
     print(Polygon(poly[0].get_xy()).area)
     ax.set_ylabel('bikeability b(m)', fontsize=params["fs_axl"])
     ax.tick_params(axis='y', labelsize=params["fs_ticks"], width=0.5)
@@ -637,7 +657,7 @@ def plot_comp_rand_demand(city, save, bpp_ed, bpp_rd, ba_ed, ba_rd, end,
     if params["legends"]:
         ax.legend(loc='lower right', fontsize=params["fs_legend"])
 
-    fig.savefig(f'{paths["plot_folder"]}{save}/{save}_ba_rd_comp'
+    fig.savefig(f'{paths["plot_folder"]}results/{save}/{save}_ba_rd_comp'
                 f'.{params["plot_format"]}', bbox_inches='tight')
 
 
@@ -649,8 +669,8 @@ def plot_city(city, save, paths=None, params=None):
         params = create_default_params()
 
     # Define city specific folders
-    comp_folder = f'{paths["comp_folder"]}{save}/'
-    plot_folder = f'{paths["plot_folder"]}{save}/'
+    comp_folder = f'{paths["comp_folder"]}/'
+    plot_folder = f'{paths["plot_folder"]}results/{save}/'
     input_folder = f'{paths["input_folder"]}{save}/'
     output_folder = f'{paths["output_folder"]}{save}/'
 

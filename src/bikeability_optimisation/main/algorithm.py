@@ -7,6 +7,7 @@ import osmnx as ox
 from copy import deepcopy
 from pathlib import Path
 from ..helper.algorithm_helper import *
+from ..helper.data_helper import create_default_paths, create_default_params
 
 
 def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
@@ -156,8 +157,7 @@ def core_algorithm(nkG, nkG_edited, edge_dict, trips_dict, nk2nx_nodes,
     hf.close()
 
 
-def run_simulation(city, save, input_folder, output_folder, log_folder,
-                   mode=(0, False)):
+def run_simulation(city, save, params=None, paths=None, mode=(0, False)):
     """
     Prepares everything to run the core algorithm. All data will be saved to
     the given folders.
@@ -165,19 +165,25 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
     :type city: str
     :param save: save name of everything associated with de place.
     :type save: str
-    :param input_folder: Path to the input folder.
-    :type input_folder: str
-    :param output_folder: Path to the output folder.
-    :type output_folder: str
-    :param log_folder: Path to the log folder.
-    :type log_folder: str
     :param mode: mode of the algorithm.
     :type mode: tuple
+    :param paths: Dictionary with folder paths (see example folder)
+    :type paths: dict or None
+    :param params: Dictionary with parameters (see example folder)
+    :type params: dict or None
     :return: None
     """
+    if paths is None:
+        paths = create_default_paths()
+    if params is None:
+        params = create_default_params()
+
     rev = mode[0]
     minmode = mode[1]
 
+    input_folder = f'{paths["input_folder"]}{save}/'
+    output_folder = f'{paths["output_folder"]}{save}/'
+    log_folder = f'{paths["log_folder"]}{save}/'
     # Check if necessary folders exists, otherwise create.
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     Path(log_folder).mkdir(parents=True, exist_ok=True)
@@ -192,11 +198,16 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
 
     logpath = f'{log_folder}{save}_{rev:d}{minmode}.txt'
     # Initial Log
-    log_to_file(logpath, f'Started optimising {city} with minmode {minmode} '
-                         f'and reversed {rev}',
-                start=sd, stamp=False, difference=False)
+    if not rev:
+        log_text = f'Started optimising {city} in removing mode and edge '\
+                   f'choosing mode {minmode}'
+    else:
+        log_text = f'Started optimising {city} in building mode and edge '\
+                   f'choosing mode {minmode}'
+    log_to_file(logpath, log_text, start=sd, stamp=False, difference=False)
 
-    nxG = ox.load_graphml(filepath=f'{input_folder}{save}.graphml')
+    nxG = ox.load_graphml(filepath=f'{input_folder}{save}.graphml',
+                          node_dtypes={'street_count': float})
     nxG = nx.Graph(nxG.to_undirected())
     print(f'Simulating "{city}" with {len(nxG.nodes)} nodes and '
           f'{len(nxG.edges)} edges.')
@@ -250,14 +261,12 @@ def run_simulation(city, save, input_folder, output_folder, log_folder,
     len_on_type['bike path'] = 0
 
     # Set penalties for different street types
-    penalties = {'primary': 7, 'secondary': 2.4, 'tertiary': 1.4,
-                 'residential': 1.1}
+    penalties = params["penalties"]
     if rev:
         penalties = {k: 1 / v for k, v in penalties.items()}
 
     # Set cost for different street types
-    street_cost = {'primary': 1, 'secondary': 1, 'tertiary': 1,
-                   'residential': 1}
+    street_cost = params["street_cost"]
 
     # Setup trips and edge dict
     trips_dict = {t_id: {'nbr of trips': nbr_of_trips, 'nodes': [],
