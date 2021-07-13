@@ -312,6 +312,10 @@ def consolidate_nodes(G, tol):
     H = nx.convert_node_labels_to_integers(H)
     nx.set_node_attributes(H, {n: n for n in H.nodes}, 'osmid')
     G = ox.project_graph(H, to_crs='epsg:4326')
+    # Bugfix for node street_count is set as gloat instead of int
+    sc = {n: int(G.nodes[n]['street_count']) for n in G.nodes
+          if 'street_count' in G.nodes[n].keys()}
+    nx.set_node_attributes(G, sc, 'street_count')
     return G
 
 
