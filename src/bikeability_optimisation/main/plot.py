@@ -8,9 +8,8 @@ from matplotlib.colors import rgb2hex
 from matplotlib.lines import Line2D
 from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, mark_inset
 from pathlib import Path
-from shapely.geometry import Polygon
-from .data import get_polygon_from_json, get_polygons_from_json, \
-    average_rand_demand, create_default_paths, create_default_params
+from .data import get_polygon_from_json, get_polygons_from_json,\
+    create_default_paths, create_default_params
 from .algorithm import calc_current_state
 from ..helper.plot_helper import *
 
@@ -18,7 +17,16 @@ from ..helper.plot_helper import *
 def plot_street_network(city, save, G, plot_folder, params=None):
     """
     Plots the street network of graph G.
-
+    :param city: Name of the city/area
+    :type city: str
+    :param save: Save name of the city/area
+    :type save: str
+    :param G: Graph of the ares
+    :type G: osmnx graph
+    :param plot_folder: Folder to save the plot
+    :type plot_folder: str
+    :param params: Dict with parameters
+    :type params: dict or None
     """
     fig, ax = plt.subplots(figsize=params["figs_snetwork"],
                            dpi=params["dpi"])
@@ -39,6 +47,20 @@ def plot_used_nodes(city, save, G, trip_nbrs, stations, plot_folder,
     """
     Plots usage of nodes in graph G. trip_nbrs and stations should be
     structured as returned from load_trips().
+    :param city: Name of the city/area
+    :type city: str
+    :param save: Save name of the city/area
+    :type save: str
+    :param G: Graph of the ares
+    :type G: osmnx graph
+    :param trip_nbrs: Dict with trips and number of cyclists
+    :type trip_nbrs: dict
+    :param stations: List of nodes used as stations
+    :type stations: list
+    :param plot_folder: Folder to save the plot
+    :type plot_folder: str
+    :param params: Dict with parameters
+    :type params: dict or None
     """
     print('Plotting used nodes.')
 
@@ -621,46 +643,6 @@ def plot_mode(city, save, data, data_now, nxG_calc, nxG_plot, stations,
     return bpp_now, ba_now, cost_now, nos_now, los_now
 
 
-def plot_comp_rand_demand(city, save, bpp_ed, bpp_rd, ba_ed, ba_rd, end,
-                          params, paths):
-    fig, ax = plt.subplots(dpi=params["dpi"], figsize=(2.7, 2.6))
-    for axis in ['top', 'bottom', 'left', 'right']:
-        ax.spines[axis].set_linewidth(0.5)
-    ax.set_xlim(0.0, 1.0)
-    ax.set_ylim(0.0, 1.0)
-
-    bpp_ed_cut = [x / bpp_ed[end] for x in bpp_ed[:end]]
-    ba_ed_cut = ba_ed[:end]
-    bpp_rd_cut = [x / bpp_rd[end] for x in bpp_rd[:end]]
-    ba_rd_cut = ba_rd[:end]
-
-    ax.plot(bpp_ed_cut, ba_ed_cut, c=params["c_ed"], lw=params["lw_ed"])
-    ax.plot(bpp_rd_cut, ba_rd_cut, c=params["c_rd"], lw=params["lw_rd"])
-    poly = ax.fill(np.append(bpp_ed_cut, bpp_rd_cut[::-1]),
-                   np.append(ba_ed_cut, ba_rd_cut[::-1]),
-                   color=params["c_rd_ed_area"], alpha=params["a_rd_ed_area"])
-    print(Polygon(poly[0].get_xy()).area)
-    ax.set_ylabel('bikeability b(m)', fontsize=params["fs_axl"])
-    ax.tick_params(axis='y', labelsize=params["fs_ticks"], width=0.5)
-    ax.tick_params(axis='x', labelsize=params["fs_ticks"], width=0.5)
-    ax.xaxis.set_major_locator(ticker.MultipleLocator(0.2))
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(0.2))
-    ax.yaxis.set_minor_locator(AutoMinorLocator())
-    ax.xaxis.set_minor_locator(AutoMinorLocator())
-
-    ax.set_xlabel('normalized fraction of bike paths m',
-                  fontsize=params["fs_axl"])
-    ax.xaxis.set_minor_locator(AutoMinorLocator())
-
-    if params["titles"]:
-        ax.set_title(f'{city}', fontsize=params["fs_title"])
-    if params["legends"]:
-        ax.legend(loc='lower right', fontsize=params["fs_legend"])
-
-    fig.savefig(f'{paths["plot_folder"]}results/{save}/{save}_ba_rd_comp'
-                f'.{params["plot_format"]}', bbox_inches='tight')
-
-
 def plot_city(city, save, paths=None, params=None):
     if paths is None:
         paths = create_default_paths()
@@ -792,29 +774,4 @@ def plot_city(city, save, paths=None, params=None):
     grp_ps['los'] = los_now
 
 
-def plot_city_rand_demand(city, save, paths, params, rd_pattern='rd',
-                          nbr_of_rd_sets=10):
-    # Plot the results for the single rand demand sets
-    for rd_i in range(nbr_of_rd_sets):
-        rd_save = f'{save}_{rd_pattern}_{rd_i+1}'
-        plot_city(city=city, save=rd_save, paths=paths, params=params)
 
-    comp_folder = f'{paths["comp_folder"]}/{save}/'
-
-    # Average the results for the rand demand over the number of sets
-    bpp_rd, ba_rd = average_rand_demand(save=save, comp_folder=comp_folder,
-                                        rd_pattern=rd_pattern,
-                                        nbr_of_rd_sets=nbr_of_rd_sets)
-
-    # Plot the comparison between the empirical and rand demand
-    data = h5py.File(f'{comp_folder}comp_{save}.hdf5', 'r')
-    data_algo = data['algorithm']
-    for m in params["modes"]:
-        bpp_ed = list(reversed(data_algo[f'{m[0]:d}{m[1]}']
-                               ['bpp complete'][()]))
-        ba_ed = data_algo[f'{m[0]:d}{m[1]}']['ba complete'][()]
-        end = data_algo[f'{m[0]:d}{m[1]}']['end'][()]
-        data.close()
-        plot_comp_rand_demand(city=city, save=save, bpp_ed=bpp_ed,
-                              bpp_rd=bpp_rd, ba_ed=ba_ed, ba_rd=ba_rd,
-                              end=end, params=params, paths=paths)
